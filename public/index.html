@@ -1,1 +1,690 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>每日簽到</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@500;700&family=Noto+Sans+TC:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper: #E8DCC3;
+    --paper-deep: #DED0B3;
+    --ink: #2B2420;
+    --ink-soft: #6B5F4F;
+    --chop: #A6331F;
+    --chop-deep: #7E2517;
+    --gold: #8C6A2F;
+    --line: #C9BBA0;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    min-height:100vh;
+    background:
+      radial-gradient(circle at 15% 10%, rgba(255,255,255,0.25), transparent 40%),
+      radial-gradient(circle at 85% 90%, rgba(0,0,0,0.05), transparent 45%),
+      var(--paper);
+    font-family:'Noto Sans TC', sans-serif;
+    color:var(--ink);
+    display:flex;
+    justify-content:center;
+    align-items:flex-start;
+    padding:48px 16px 80px;
+  }
+  .card{
+    width:100%;
+    max-width:440px;
+    background: var(--paper-deep);
+    border:1px solid var(--line);
+    border-radius:6px;
+    padding:36px 30px 28px;
+    position:relative;
+    box-shadow: 0 1px 0 rgba(255,255,255,0.4) inset, 0 18px 40px -24px rgba(43,36,32,0.35);
+  }
+  .card::before{
+    content:"";
+    position:absolute;
+    inset:10px;
+    border:1px solid rgba(43,36,32,0.12);
+    border-radius:3px;
+    pointer-events:none;
+  }
+  header{ text-align:center; margin-bottom:8px; }
+  h1{
+    font-family:'Noto Serif TC', serif;
+    font-weight:700;
+    font-size:26px;
+    margin:0 0 6px;
+    letter-spacing:2px;
+  }
+  .subtitle{ font-size:13px; color:var(--ink-soft); margin:0; }
+  .admin-link{
+    display:block;
+    text-align:center;
+    font-size:11px;
+    color: var(--ink-soft);
+    margin-top:8px;
+  }
+  .admin-link a{ color: var(--ink-soft); }
+  .stamp-zone{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    margin:28px 0 6px;
+  }
+  .stamp-btn{ background:none; border:none; padding:0; cursor:pointer; -webkit-tap-highlight-color: transparent; }
+  .stamp-btn:disabled{ cursor:default; }
+  .stamp-btn svg{ display:block; width:172px; height:172px; }
+  .stamp-circle{ fill:transparent; transition: fill .35s ease; }
+  .stamp-ring{ fill:none; stroke:var(--chop); stroke-width:3.5; }
+  .stamp-text{
+    fill:var(--chop);
+    font-family:'Noto Serif TC', serif;
+    font-weight:700;
+    font-size:58px;
+    transition: fill .35s ease;
+  }
+  .is-stamped .stamp-circle{ fill:var(--chop); }
+  .is-stamped .stamp-text{ fill:var(--paper-deep); }
+  .is-leave .stamp-ring{ stroke: var(--gold); }
+  .is-leave .stamp-text{ fill:var(--gold); }
+  .is-leave-pending .stamp-ring{ stroke: var(--gold); stroke-dasharray: 8 6; }
+  .is-leave-pending .stamp-text{ fill:var(--gold); }
+  .stamp-group{ transform-origin:100px 100px; transform: rotate(-6deg); }
+  .stamp-group.impact{ animation: stampImpact .45s cubic-bezier(.2,1.4,.4,1); }
+  @keyframes stampImpact{
+    0%{ transform: scale(1.5) rotate(-14deg); opacity:.15; }
+    55%{ transform: scale(0.94) rotate(2deg); opacity:1; }
+    100%{ transform: scale(1) rotate(-6deg); }
+  }
+  .stamp-hint{ margin-top:14px; font-size:13px; color:var(--ink-soft); min-height:18px; text-align:center; }
+  .status-note{
+    font-size:12px;
+    color: var(--gold);
+    text-align:center;
+    margin:0 0 4px;
+    max-width:320px;
+  }
+  .leave-row{
+    display:flex;
+    gap:14px;
+    align-items:center;
+    margin-top:2px;
+  }
+  .leave-link, .refresh-link{
+    background:none; border:none;
+    color: var(--ink-soft);
+    font-size:12px;
+    text-decoration: underline;
+    text-underline-offset:2px;
+    cursor:pointer;
+    padding:4px;
+  }
+  .leave-link:disabled{ color: var(--line); text-decoration:none; cursor:default; }
+  .shake{ animation: shake .4s; }
+  @keyframes shake{
+    0%,100%{ transform: translateX(0); }
+    25%{ transform: translateX(-5px); }
+    75%{ transform: translateX(5px); }
+  }
+  .stats{ display:flex; justify-content:center; gap:20px; text-align:center; margin:18px 0 22px; }
+  .stat b{ display:block; font-family:'Noto Serif TC', serif; font-size:22px; font-weight:700; line-height:1.1; }
+  .stat span{ font-size:11px; color:var(--ink-soft); }
+  .divider{ border:none; border-top:1px dashed var(--line); margin:22px 0; }
+  .section-label{ font-size:12px; color:var(--ink-soft); margin:0 0 12px; text-align:center; }
+  .dot-row{ display:flex; justify-content:center; gap:8px; flex-wrap:wrap; margin-bottom:6px; }
+  .dot{ width:14px; height:14px; border-radius:50%; border:1.5px solid var(--line); background:transparent; }
+  .dot.filled{ background:var(--chop); border-color:var(--chop); }
+  .dot.leave{ background:var(--gold); border-color:var(--gold); }
+  .dot.leave-pending{ background:transparent; border:1.5px dashed var(--gold); }
+  .dot.today{ box-shadow: 0 0 0 3px rgba(166,51,31,0.18); }
+  .dot-detail{ text-align:center; font-size:12px; color: var(--ink-soft); min-height:16px; margin:4px 0 0; }
+  .progress-track{ width:100%; height:10px; background: rgba(0,0,0,0.06); border-radius:6px; overflow:hidden; border:1px solid var(--line); }
+  .progress-fill{ height:100%; background: var(--gold); width:0%; transition: width .5s ease; }
+  .progress-text{ text-align:center; font-size:12px; color:var(--ink-soft); margin-top:10px; }
+  details.leave-log{ margin-top:18px; font-size:12px; color: var(--ink-soft); }
+  details.leave-log summary{ cursor:pointer; text-align:center; outline:none; }
+  .leave-log-list{ margin-top:10px; max-height:140px; overflow-y:auto; display:flex; flex-direction:column; gap:6px; }
+  .leave-log-item{ border:1px solid var(--line); border-radius:5px; padding:6px 10px; background: rgba(255,255,255,0.15); }
+  .leave-log-item .ld{ font-weight:600; color: var(--ink); margin-right:6px; }
+  .leave-log-item .tag{ font-size:10px; padding:1px 6px; border-radius:10px; margin-left:6px; }
+  .tag.pending{ background: rgba(140,106,47,0.15); color: var(--gold); }
+  .tag.approved{ background: rgba(92,110,73,0.15); color:#5C6E49; }
+  .tag.rejected{ background: rgba(166,51,31,0.12); color: var(--chop-deep); }
+  .leave-log-empty{ text-align:center; color: var(--line); }
+  .reset-link{
+    display:block; text-align:center; margin-top:22px; font-size:11px; color: var(--ink-soft);
+    text-decoration: underline; text-underline-offset:2px; background:none; border:none; cursor:pointer; width:100%;
+  }
+  .overlay{
+    position:fixed; inset:0; background: rgba(43,36,32,0.45); display:flex; align-items:center; justify-content:center;
+    padding:24px; z-index:10; opacity:0; pointer-events:none; transition: opacity .25s ease;
+  }
+  .overlay.show{ opacity:1; pointer-events:auto; }
+  .reveal-card{
+    background: var(--paper); border:1px solid var(--gold); border-radius:8px; padding:32px 28px; max-width:300px;
+    text-align:center; transform: scale(.9); transition: transform .25s ease;
+  }
+  .overlay.show .reveal-card{ transform: scale(1); }
+  .reveal-card .ch-big{ font-family:'Noto Serif TC', serif; font-size:52px; font-weight:700; color: var(--gold); line-height:1; margin-bottom:10px; }
+  .reveal-card h2{ font-size:16px; margin:0 0 6px; font-family:'Noto Serif TC', serif; }
+  .reveal-card p{ font-size:13px; color: var(--ink-soft); margin:0 0 20px; }
+  .reveal-card button{
+    background: var(--chop); color: var(--paper); border:none; padding:10px 22px; border-radius:5px;
+    font-size:13px; cursor:pointer; font-family:'Noto Sans TC', sans-serif;
+  }
+  .leave-card{
+    background: var(--paper); border:1px solid var(--line); border-radius:8px; padding:28px 24px;
+    max-width:320px; width:100%; transform: scale(.9); transition: transform .25s ease;
+  }
+  .overlay.show .leave-card{ transform: scale(1); }
+  .leave-card h2{ font-size:16px; margin:0 0 4px; font-family:'Noto Serif TC', serif; text-align:center; }
+  .leave-card p.hint{ font-size:12px; color: var(--ink-soft); text-align:center; margin:0 0 16px; }
+  .leave-card label{ font-size:12px; color: var(--ink-soft); display:block; margin:0 0 4px; }
+  .leave-card input, .leave-card textarea{
+    width:100%; border:1px solid var(--line); border-radius:6px; padding:9px 10px;
+    font-family:'Noto Sans TC', sans-serif; font-size:13px; background: #fff; color: var(--ink); margin-bottom:12px;
+  }
+  .leave-card textarea{ min-height:70px; resize:vertical; }
+  .leave-card .btn-row{ display:flex; gap:10px; margin-top:4px; }
+  .leave-card .btn-row button{ flex:1; }
+  .leave-card .btn-cancel{ background: transparent !important; color: var(--ink-soft) !important; border:1px solid var(--line) !important; }
+  .error-msg{ text-align:center; font-size:12px; color: var(--chop-deep); margin-top:10px; min-height:16px; }
+  @media (max-width:400px){
+    .card{ padding:28px 18px 22px; }
+    .stamp-btn svg{ width:150px; height:150px; }
+    .stats{ gap:14px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="card">
+  <header>
+    <h1>每日簽到</h1>
+    <p class="subtitle">為今天蓋下屬於自己的印記</p>
+    <p class="admin-link">美女請假需要審核</p>
+  </header>
+
+  <div class="stamp-zone">
+    <button class="stamp-btn" id="stampBtn" aria-label="今日簽到">
+      <svg viewBox="0 0 200 200">
+        <defs>
+          <filter id="rough" x="-20%" y="-20%" width="140%" height="140%">
+            <feTurbulence type="fractalNoise" baseFrequency="0.018" numOctaves="2" seed="7" result="n"/>
+            <feDisplacementMap in="SourceGraphic" in2="n" scale="7"/>
+          </filter>
+        </defs>
+        <g id="stampGroup" class="stamp-group" filter="url(#rough)">
+          <circle cx="100" cy="100" r="80" class="stamp-circle"></circle>
+          <circle cx="100" cy="100" r="80" class="stamp-ring"></circle>
+          <text x="100" y="115" text-anchor="middle" class="stamp-text" id="stampChar">簽</text>
+        </g>
+      </svg>
+    </button>
+    <p class="stamp-hint" id="stampHint">點一下,完成今日簽到</p>
+    <p class="status-note" id="statusNote" style="display:none;"></p>
+    <div class="leave-row">
+      <button class="leave-link" id="leaveLink">今天要請假</button>
+      <button class="refresh-link" id="refreshLink">重新整理審核狀態</button>
+    </div>
+    <p class="error-msg" id="errorMsg"></p>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><b id="streakNum">0</b><span>連續天數</span></div>
+    <div class="stat"><b id="totalNum">0</b><span>累積簽到</span></div>
+    <div class="stat"><b id="redeemNum">0</b><span>已兌換茶六</span></div>
+  </div>
+
+  <hr class="divider">
+
+  <p class="section-label">近期紀錄</p>
+  <div class="dot-row" id="dotRow"></div>
+  <p class="dot-detail" id="dotDetail"></p>
+
+  <hr class="divider">
+
+  <p class="section-label">兌換進度 · 集滿 3 個月可換一頓茶六</p>
+  <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+  <p class="progress-text" id="progressText">已集 0 / 90 天</p>
+
+  <details class="leave-log">
+    <summary>請假紀錄</summary>
+    <div class="leave-log-list" id="leaveLogList"></div>
+  </details>
+
+  <button class="reset-link" id="resetLink">重新開始紀錄</button>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="reveal-card">
+    <div class="ch-big">茶</div>
+    <h2>集滿3個月!</h2>
+    <p>累積簽到已滿 90 天,可換一頓茶六摟~</p>
+    <button id="revealClose">太棒了</button>
+  </div>
+</div>
+
+<div class="overlay" id="leaveOverlay">
+  <div class="leave-card">
+    <h2>今天請假</h2>
+    <p class="hint">送出後會審核</p>
+    <label for="leaveNameInput">姓名</label>
+    <input id="leaveNameInput" type="text" placeholder="你的名字">
+    <label for="leaveReasonInput">原因</label>
+    <textarea id="leaveReasonInput" placeholder="例如:身體不適、臨時有事、心情不好..."></textarea>
+    <div class="btn-row">
+      <button class="btn-cancel" id="leaveCancel">取消</button>
+      <button id="leaveConfirm">送出審核</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const STORAGE_KEY = 'checkin-data';
+const USER_TOKEN_KEY = 'leave-user-token';
+const GOAL_DAYS = 90;
+
+let state = { totalCount: 0, dates: [], approvedLeaves: [], pendingLeave: null, lastDate: null, redeemedCount: 0 };
+
+function getUserToken(){
+  let token = localStorage.getItem(USER_TOKEN_KEY);
+  if(!token){
+    token = crypto.randomUUID ? crypto.randomUUID() :
+      Date.now().toString(36) + Math.random().toString(36).slice(2);
+    localStorage.setItem(USER_TOKEN_KEY, token);
+  }
+  return token;
+}
+const userToken = getUserToken();
+
+function todayStr(d = new Date()){ return d.toLocaleDateString('sv-SE'); }
+function addDays(dateStr, delta){
+  const d = new Date(dateStr + 'T00:00:00');
+  d.setDate(d.getDate() + delta);
+  return todayStr(d);
+}
+function escapeHtml(str){
+  const div = document.createElement('div');
+  div.textContent = str || '';
+  return div.innerHTML;
+}
+
+async function api(path, options = {}){
+  const headers = new Headers(options.headers || {});
+  headers.set('Content-Type', 'application/json');
+  headers.set('X-User-Token', userToken);
+  const res = await fetch(path, { ...options, headers });
+  const data = await res.json().catch(() => ({}));
+  if(!res.ok) throw new Error(data.error || '伺服器錯誤');
+  return data;
+}
+
+async function loadState(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(raw){
+      const parsed = JSON.parse(raw);
+      state = Object.assign({ totalCount:0, dates:[], approvedLeaves:[], pendingLeave:null, lastDate:null, redeemedCount:0 }, parsed);
+    }
+  }catch(e){ console.error(e); }
+  render();
+  await checkPendingStatus();
+}
+async function saveState(){
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+
+async function getRequests(){
+  const data = await api('/api/employee/requests');
+  return data.requests || [];
+}
+
+function approvedLeaveSet(){ return new Set(state.approvedLeaves.map(l => l.date)); }
+
+function computeStreak(){
+  const checkinSet = new Set(state.dates);
+  const leaveSet = approvedLeaveSet();
+  const connected = (d) => checkinSet.has(d) || leaveSet.has(d);
+  const today = todayStr();
+  let cursor = connected(today) ? today : addDays(today, -1);
+  if(!connected(cursor)) return 0;
+  let count = 0;
+  while(connected(cursor)){ count++; cursor = addDays(cursor, -1); }
+  return count;
+}
+
+function render(){
+  const today = todayStr();
+  const checkedToday = state.lastDate === today && state.dates.includes(today);
+  const approvedLeaveToday = state.lastDate === today && approvedLeaveSet().has(today);
+  const pendingToday = !!(state.pendingLeave && state.pendingLeave.date === today);
+  const stampBtn = document.getElementById('stampBtn');
+  const leaveLink = document.getElementById('leaveLink');
+  const hint = document.getElementById('stampHint');
+  const statusNote = document.getElementById('statusNote');
+  const group = document.getElementById('stampGroup');
+
+  group.classList.toggle('is-stamped', checkedToday);
+  group.classList.toggle('is-leave', approvedLeaveToday);
+  group.classList.toggle('is-leave-pending', pendingToday);
+  document.getElementById('stampChar').textContent = (approvedLeaveToday || pendingToday) ? '假' : '簽';
+
+  stampBtn.disabled = checkedToday || approvedLeaveToday || pendingToday;
+  leaveLink.disabled = checkedToday || approvedLeaveToday || pendingToday;
+
+  if(checkedToday){
+    hint.textContent = '今天已經蓋過章囉,明天再來';
+    statusNote.style.display = 'none';
+  }else if(pendingToday){
+    hint.textContent = '請假申請審核中';
+    statusNote.textContent = '原因:' + (state.pendingLeave.reason || '(未填寫)');
+    statusNote.style.display = 'block';
+  }else if(approvedLeaveToday){
+    hint.textContent = '今天請假(已核准)';
+    const rec = state.approvedLeaves.find(l => l.date === today);
+    statusNote.textContent = '原因:' + (rec ? rec.reason : '');
+    statusNote.style.display = 'block';
+  }else{
+    hint.textContent = '點一下,完成今日簽到';
+    statusNote.style.display = 'none';
+  }
+
+  document.getElementById('streakNum').textContent = computeStreak();
+  document.getElementById('totalNum').textContent = state.totalCount;
+  document.getElementById('redeemNum').textContent = state.redeemedCount;
+
+  const dotRow = document.getElementById('dotRow');
+  const dotDetail = document.getElementById('dotDetail');
+  dotDetail.textContent = '';
+  dotRow.innerHTML = '';
+  const checkinSet = new Set(state.dates);
+  const leaveSet = approvedLeaveSet();
+  for(let i = 13; i >= 0; i--){
+    const ds = addDays(today, -i);
+    const dot = document.createElement('div');
+    let cls = 'dot';
+    let info = null;
+    if(checkinSet.has(ds)){
+      cls += ' filled';
+      info = ds + ' · 已簽到';
+    }else if(leaveSet.has(ds)){
+      cls += ' leave';
+      const rec = state.approvedLeaves.find(l => l.date === ds);
+      info = ds + ' · 請假已核准' + (rec && rec.reason ? '(' + rec.reason + ')' : '');
+    }else if(state.pendingLeave && state.pendingLeave.date === ds){
+      cls += ' leave-pending';
+      info = ds + ' · 請假審核中';
+    }
+    if(ds === today) cls += ' today';
+    dot.className = cls;
+    if(info){
+      dot.title = info;
+      dot.style.cursor = 'pointer';
+      dot.addEventListener('click', () => { dotDetail.textContent = info; });
+    }
+    dotRow.appendChild(dot);
+  }
+
+  const progressInCycle = state.totalCount % GOAL_DAYS;
+  const pct = Math.round((progressInCycle / GOAL_DAYS) * 100);
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressText').textContent = `已集 ${progressInCycle} / ${GOAL_DAYS} 天`;
+
+  const logList = document.getElementById('leaveLogList');
+  logList.innerHTML = '';
+  const historyItems = [
+    ...state.approvedLeaves.map(l => ({ date: l.date, reason: l.reason, status: 'approved' })),
+    ...(state.pendingLeave ? [{ date: state.pendingLeave.date, reason: state.pendingLeave.reason, status: 'pending' }] : [])
+  ].sort((a, b) => b.date.localeCompare(a.date));
+  if(historyItems.length === 0){
+    logList.innerHTML = '<div class="leave-log-empty">尚無請假紀錄</div>';
+  }else{
+    historyItems.slice(0, 20).forEach(l => {
+      const item = document.createElement('div');
+      item.className = 'leave-log-item';
+      const tagText = l.status === 'pending' ? '審核中' : '已核准';
+      item.innerHTML = `<span class="ld">${escapeHtml(l.date)}</span>${l.reason ? escapeHtml(l.reason) : '(未填寫原因)'}<span class="tag ${l.status === 'pending' ? 'pending' : 'approved'}">${tagText}</span>`;
+      logList.appendChild(item);
+    });
+  }
+}
+
+async function checkIn(){
+
+  const errorMsg = document.getElementById('errorMsg');
+  const hint = document.getElementById('stampHint');
+
+  errorMsg.textContent = '';
+
+  // 檢查瀏覽器是否支援定位
+  if (!navigator.geolocation) {
+    errorMsg.textContent = '這個裝置不支援定位功能。';
+    return;
+  }
+
+  hint.textContent = '正在確認你的位置...';
+
+
+  navigator.geolocation.getCurrentPosition(
+
+    // ===== 成功取得 GPS =====
+    async position => {
+
+      const latitude = position.coords.latitude;
+      const longitude = position.coords.longitude;
+
+      try {
+
+        // 傳 GPS 給 Worker
+        const result = await api('/api/checkin', {
+          method: 'POST',
+          body: JSON.stringify({
+            latitude,
+            longitude
+          })
+        });
+
+
+        // ===== Worker 驗證通過 =====
+
+        const today = result.date;
+        const previousTotal = state.totalCount;
+
+        if (!state.dates.includes(today)) {
+          state.dates.push(today);
+          state.totalCount += 1;
+        }
+
+        state.dates = state.dates.slice(-120);
+        state.lastDate = today;
+
+
+        try {
+          await saveState();
+        } catch(e) {
+          errorMsg.textContent = '簽到成功，但本機紀錄暫時無法儲存。';
+        }
+
+
+        // 蓋章動畫
+        document.getElementById('stampGroup').classList.add('impact');
+
+        setTimeout(() => {
+          document.getElementById('stampGroup').classList.remove('impact');
+        }, 450);
+
+
+        render();
+
+
+        // ===== 檢查是否達到 90 天 =====
+
+        const prevCycles = Math.floor(previousTotal / GOAL_DAYS);
+        const nextCycles = Math.floor(state.totalCount / GOAL_DAYS);
+
+        if(nextCycles > prevCycles){
+
+          state.redeemedCount += (nextCycles - prevCycles);
+
+          try {
+            await saveState();
+          } catch(e) {}
+
+          render();
+
+          document.getElementById('overlay').classList.add('show');
+        }
+
+      } catch(e) {
+
+        // Worker 回傳：
+        // 不在時間內 / 距離太遠 / 今天已簽到
+        errorMsg.textContent = e.message;
+
+        render();
+      }
+    },
+
+
+    // ===== GPS 取得失敗 =====
+    error => {
+
+      if(error.code === 1){
+
+        errorMsg.textContent =
+          '請允許瀏覽器取得你的位置，才能完成簽到。';
+
+      }else if(error.code === 2){
+
+        errorMsg.textContent =
+          '目前無法取得你的位置，請確認 GPS 已開啟。';
+
+      }else if(error.code === 3){
+
+        errorMsg.textContent =
+          '取得位置逾時，請再試一次。';
+
+      }else{
+
+        errorMsg.textContent =
+          '無法取得目前位置。';
+      }
+
+      render();
+    },
+
+
+    // ===== GPS 設定 =====
+    {
+      enableHighAccuracy: true,
+      timeout: 10000,
+      maximumAge: 0
+    }
+
+  );
+}
+
+function openLeaveModal(){
+  const today = todayStr();
+  if(state.lastDate === today) return;
+  document.getElementById('leaveNameInput').value = '';
+  document.getElementById('leaveReasonInput').value = '';
+  document.getElementById('leaveOverlay').classList.add('show');
+}
+function closeLeaveModal(){ document.getElementById('leaveOverlay').classList.remove('show'); }
+
+async function submitLeave(){
+  const today = todayStr();
+  if(state.lastDate === today){ closeLeaveModal(); return; }
+  const name = document.getElementById('leaveNameInput').value.trim();
+  const reason = document.getElementById('leaveReasonInput').value.trim();
+  if(!name){ alert('請填寫姓名'); return; }
+  if(!reason){ alert('請填寫請假原因'); return; }
+  const id = crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+
+  document.getElementById('errorMsg').textContent = '';
+  try{
+    await api('/api/requests', {
+      method: 'POST',
+      body: JSON.stringify({ id, date: today, name, reason, requesterToken: userToken })
+    });
+  }catch(e){
+    document.getElementById('errorMsg').textContent = '送出失敗:' + e.message;
+    closeLeaveModal();
+    return;
+  }
+
+  state = Object.assign({}, state, { pendingLeave: { id, date: today, reason, name }, lastDate: today });
+  try{ await saveState(); }
+  catch(e){ document.getElementById('errorMsg').textContent = '請假已送出,但本機狀態暫時無法儲存。'; }
+  closeLeaveModal();
+  render();
+}
+
+async function checkPendingStatus(){
+  try{
+    const list = await getRequests();
+    const localPending = state.pendingLeave;
+
+    // 若本機沒有 pending，但 D1 有，復原狀態
+    if(!localPending){
+      const remotePending = list.find(r => r.status === 'pending' && r.date === todayStr());
+      if(remotePending){
+        state.pendingLeave = { id: remotePending.id, date: remotePending.date, reason: remotePending.reason, name: remotePending.name };
+        state.lastDate = remotePending.date;
+        await saveState();
+        render();
+      }
+      return;
+    }
+
+    const match = list.find(r => r.id === localPending.id);
+    if(!match) return;
+    if(match.status === 'approved'){
+      if(!state.approvedLeaves.some(l => l.date === localPending.date)){
+        state.approvedLeaves = [...state.approvedLeaves, { date: localPending.date, reason: localPending.reason }];
+      }
+      state.pendingLeave = null;
+      await saveState();
+      render();
+    }else if(match.status === 'rejected'){
+      const wasToday = localPending.date === todayStr();
+      state.pendingLeave = null;
+      if(wasToday && state.lastDate === todayStr()) state.lastDate = null;
+      await saveState();
+      render();
+      document.getElementById('errorMsg').textContent = '你的請假申請未通過' + (match.reviewNote ? ':' + match.reviewNote : '') + ',可以改為正常簽到。';
+    }
+  }catch(e){
+    document.getElementById('errorMsg').textContent = '暫時無法取得審核狀態:' + e.message;
+  }
+}
+
+async function resetAll(){
+  if(!confirm('確定要清除這台裝置上的簽到紀錄嗎?此動作不會刪除已送到管理端的請假申請。')) return;
+  localStorage.removeItem(STORAGE_KEY);
+  state = { totalCount:0, dates:[], approvedLeaves:[], pendingLeave:null, lastDate:null, redeemedCount:0 };
+  render();
+  await checkPendingStatus();
+}
+
+document.getElementById('stampBtn').addEventListener('click', checkIn);
+document.getElementById('revealClose').addEventListener('click', () => document.getElementById('overlay').classList.remove('show'));
+document.getElementById('overlay').addEventListener('click', (e) => { if(e.target.id === 'overlay') document.getElementById('overlay').classList.remove('show'); });
+document.getElementById('leaveLink').addEventListener('click', openLeaveModal);
+document.getElementById('leaveCancel').addEventListener('click', closeLeaveModal);
+document.getElementById('leaveConfirm').addEventListener('click', submitLeave);
+document.getElementById('leaveOverlay').addEventListener('click', (e) => { if(e.target.id === 'leaveOverlay') closeLeaveModal(); });
+document.getElementById('refreshLink').addEventListener('click', checkPendingStatus);
+document.getElementById('resetLink').addEventListener('click', resetAll);
+
+loadState();
+</script>
+
+</body>
+</html>
+
 
