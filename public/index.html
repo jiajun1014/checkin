@@ -190,6 +190,9 @@
   .leave-card .btn-row{ display:flex; gap:10px; margin-top:4px; }
   .leave-card .btn-row button{ flex:1; }
   .leave-card .btn-cancel{ background: transparent !important; color: var(--ink-soft) !important; border:1px solid var(--line) !important; }
+  .mood-card{background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:26px 24px;max-width:340px;width:100%;text-align:center;}
+  .mood-buttons{display:flex;gap:8px;justify-content:center;margin:16px 0;} .mood-buttons button{width:42px;height:42px;border:1px solid var(--line);background:#fff;border-radius:50%;cursor:pointer;} .mood-buttons button.selected{border:2px solid var(--chop);font-weight:700;}
+  .mood-card textarea{width:100%;min-height:70px;border:1px solid var(--line);border-radius:6px;padding:9px;font-family:inherit;display:none;margin:10px 0;}
   .error-msg{ text-align:center; font-size:12px; color: var(--chop-deep); margin-top:10px; min-height:16px; }
   @media (max-width:400px){
     .card{ padding:28px 18px 22px; }
@@ -271,8 +274,6 @@
   <div class="leave-card">
     <h2>今天請假</h2>
     <p class="hint">送出後會審核</p>
-    <label for="leaveNameInput">姓名</label>
-    <input id="leaveNameInput" type="text" placeholder="你的名字">
     <label for="leaveReasonInput">原因</label>
     <textarea id="leaveReasonInput" placeholder="例如:身體不適、臨時有事、心情不好..."></textarea>
     <div class="btn-row">
@@ -281,6 +282,9 @@
     </div>
   </div>
 </div>
+
+
+<div class="overlay" id="moodOverlay"><div class="mood-card"><h2>今日心情指數</h2><p class="hint">今天的心情是幾分？</p><div class="mood-buttons" id="moodButtons"></div><textarea id="moodReason" placeholder="今天怎麼了？可以簡單寫下原因"></textarea><button id="moodSubmit">送出心情</button></div></div>
 
 <script>
 const STORAGE_KEY = 'checkin-data';
@@ -452,6 +456,10 @@ function render(){
   }
 }
 
+let selectedMood = 0;
+function showMood(){ selectedMood=0; const box=document.getElementById('moodButtons'); box.innerHTML=''; for(let i=1;i<=5;i++){ const b=document.createElement('button'); b.textContent=i; b.onclick=()=>{selectedMood=i; [...box.children].forEach(x=>x.classList.remove('selected')); b.classList.add('selected'); document.getElementById('moodReason').style.display=i<3?'block':'none';}; box.appendChild(b);} document.getElementById('moodReason').value=''; document.getElementById('moodReason').style.display='none'; document.getElementById('moodOverlay').classList.add('show'); }
+async function submitMood(){ if(!selectedMood){alert('請選擇 1～5 分');return;} const reason=document.getElementById('moodReason').value.trim(); if(selectedMood<3&&!reason){alert('低於 3 分時請填寫原因');return;} try{await api('/api/mood',{method:'POST',body:JSON.stringify({score:selectedMood,reason})}); document.getElementById('moodOverlay').classList.remove('show');}catch(e){alert('心情送出失敗：'+e.message);} }
+
 async function checkIn(){
 
   const errorMsg = document.getElementById('errorMsg');
@@ -518,7 +526,7 @@ async function checkIn(){
 
 
         render();
-
+        showMood();
 
         // ===== 檢查是否達到 90 天 =====
 
@@ -590,7 +598,6 @@ async function checkIn(){
 function openLeaveModal(){
   const today = todayStr();
   if(state.lastDate === today) return;
-  document.getElementById('leaveNameInput').value = '';
   document.getElementById('leaveReasonInput').value = '';
   document.getElementById('leaveOverlay').classList.add('show');
 }
@@ -599,9 +606,7 @@ function closeLeaveModal(){ document.getElementById('leaveOverlay').classList.re
 async function submitLeave(){
   const today = todayStr();
   if(state.lastDate === today){ closeLeaveModal(); return; }
-  const name = document.getElementById('leaveNameInput').value.trim();
   const reason = document.getElementById('leaveReasonInput').value.trim();
-  if(!name){ alert('請填寫姓名'); return; }
   if(!reason){ alert('請填寫請假原因'); return; }
   const id = crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 
@@ -609,7 +614,7 @@ async function submitLeave(){
   try{
     await api('/api/requests', {
       method: 'POST',
-      body: JSON.stringify({ id, date: today, name, reason, requesterToken: userToken })
+      body: JSON.stringify({ id, date: today, reason, requesterToken: userToken })
     });
   }catch(e){
     document.getElementById('errorMsg').textContent = '送出失敗:' + e.message;
@@ -617,7 +622,7 @@ async function submitLeave(){
     return;
   }
 
-  state = Object.assign({}, state, { pendingLeave: { id, date: today, reason, name }, lastDate: today });
+  state = Object.assign({}, state, { pendingLeave: { id, date: today, reason }, lastDate: today });
   try{ await saveState(); }
   catch(e){ document.getElementById('errorMsg').textContent = '請假已送出,但本機狀態暫時無法儲存。'; }
   closeLeaveModal();
@@ -633,7 +638,7 @@ async function checkPendingStatus(){
     if(!localPending){
       const remotePending = list.find(r => r.status === 'pending' && r.date === todayStr());
       if(remotePending){
-        state.pendingLeave = { id: remotePending.id, date: remotePending.date, reason: remotePending.reason, name: remotePending.name };
+        state.pendingLeave = { id: remotePending.id, date: remotePending.date, reason: remotePending.reason };
         state.lastDate = remotePending.date;
         await saveState();
         render();
@@ -650,6 +655,7 @@ async function checkPendingStatus(){
       state.pendingLeave = null;
       await saveState();
       render();
+      if(localPending.date === todayStr()) showMood();
     }else if(match.status === 'rejected'){
       const wasToday = localPending.date === todayStr();
       state.pendingLeave = null;
@@ -680,6 +686,7 @@ document.getElementById('leaveConfirm').addEventListener('click', submitLeave);
 document.getElementById('leaveOverlay').addEventListener('click', (e) => { if(e.target.id === 'leaveOverlay') closeLeaveModal(); });
 document.getElementById('refreshLink').addEventListener('click', checkPendingStatus);
 document.getElementById('resetLink').addEventListener('click', resetAll);
+document.getElementById('moodSubmit').addEventListener('click',submitMood);
 
 loadState();
 </script>
