@@ -580,7 +580,7 @@
       </svg>
     </button>
 
-    <p class="stamp-hint" id="stampHint">請美女點一下，完成今日簽到</p>
+    <p class="stamp-hint" id="stampHint">請美女點一下</p>
     <p class="status-note" id="statusNote" style="display:none;"></p>
 
     <div class="leave-row">
@@ -930,7 +930,7 @@ function render(){
     if(todayStatus && !todayStatus.isAllowedTime){
       hint.textContent = '目前不在開放簽到時間';
     }else{
-      hint.textContent = '請美女點一下，完成今日簽到';
+      hint.textContent = '請美女點一下';
     }
 
     if(todayStatus && todayStatus.scheduleText){
