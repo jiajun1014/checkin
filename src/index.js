@@ -649,11 +649,7 @@ export default {
 
         return json({ ok: true, date }, 200, cors);
       }
-      if (!isAllowedCheckinTime(taiwan)) {
-        return json({
-          error: "目前不在開放簽到時間。簽到時間為星期一、星期二、星期四 09:00～10:00"
-        }, 403);
-      }
+
 
       // =========================================================
       // 靜態檔案
