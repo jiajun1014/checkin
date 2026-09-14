@@ -26,3 +26,4 @@
 
 `public/index.html` 的個人簽到進度會保存在該瀏覽器的 localStorage；
 請假申請與審核資料則會透過 `/api/*` 寫入 Cloudflare D1，管理員可跨裝置查看與審核。
+<!-- trigger Cloudflare build -->
