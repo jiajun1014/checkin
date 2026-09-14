@@ -1,18 +1,1152 @@
-<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>管理員</title>
-<style>:root{--paper:#E8DCC3;--deep:#DED0B3;--ink:#2B2420;--soft:#6B5F4F;--red:#A6331F;--green:#5C6E49;--line:#C9BBA0}*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font-family:Arial,"Noto Sans TC",sans-serif;padding:40px 16px}.wrap{max-width:680px;margin:auto}h1,h2{text-align:center}button,input{font:inherit}.box,.card{background:var(--deep);border:1px solid var(--line);border-radius:8px;padding:14px;margin:10px 0}.login{max-width:360px;margin:80px auto}.login input{width:100%;padding:10px;margin:10px 0;border:1px solid var(--line);border-radius:6px}.btn{padding:9px 14px;border:0;border-radius:6px;cursor:pointer}.primary{background:var(--red);color:white}.approve{background:var(--green);color:white}.reject{background:transparent;color:var(--red);border:1px solid var(--red)}.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.row input{padding:8px;border:1px solid var(--line);border-radius:5px}.space{justify-content:space-between}.muted{color:var(--soft);font-size:12px}.section{margin-top:28px;border-bottom:1px solid var(--line);padding-bottom:6px}.error{color:var(--red);text-align:center}.hidden{display:none}.tag{font-size:11px}.holiday{display:flex;justify-content:space-between;align-items:center}</style></head><body>
-<div id="login" class="login box"><h2>管理員登入</h2><input id="pw" type="password" placeholder="管理員密碼"><button class="btn primary" id="loginBtn">登入</button><p id="loginErr" class="error"></p></div>
-<div id="app" class="wrap hidden"><div class="row space"><h1>請假審核</h1><div><button class="btn" id="refresh">重新整理</button> <button class="btn" id="logout">登出</button></div></div>
-<h3 class="section">待審核</h3><div id="pending"></div><h3 class="section">審核紀錄</h3><div id="history"></div>
-<h3 class="section">國定假日</h3><div class="box"><div class="row"><input id="holidayDate" type="date"><button class="btn primary" id="addHoliday">新增國定假日</button></div><p class="muted">國定假日當天不開放一般簽到，也不列入成功簽到。</p></div><div id="holidays"></div></div>
+<!DOCTYPE html>
+<html lang="zh-Hant">
+
+<head>
+  <meta charset="UTF-8">
+
+  <meta
+    name="viewport"
+    content="width=device-width,initial-scale=1"
+  >
+
+  <title>管理員</title>
+
+  <style>
+    :root{
+      --paper:#E8DCC3;
+      --deep:#DED0B3;
+      --ink:#2B2420;
+      --soft:#6B5F4F;
+      --red:#A6331F;
+      --green:#5C6E49;
+      --gold:#8C6A2F;
+      --line:#C9BBA0;
+    }
+
+    *{
+      box-sizing:border-box;
+    }
+
+    body{
+      margin:0;
+      background:var(--paper);
+      color:var(--ink);
+      font-family:
+        Arial,
+        "Noto Sans TC",
+        sans-serif;
+
+      padding:40px 16px;
+    }
+
+    .wrap{
+      max-width:680px;
+      margin:auto;
+    }
+
+    h1,
+    h2{
+      text-align:center;
+    }
+
+    button,
+    input{
+      font:inherit;
+    }
+
+    .box,
+    .card{
+      background:var(--deep);
+      border:1px solid var(--line);
+      border-radius:8px;
+      padding:14px;
+      margin:10px 0;
+    }
+
+    .login{
+      max-width:360px;
+      margin:80px auto;
+    }
+
+    .login input{
+      width:100%;
+      padding:10px;
+      margin:10px 0;
+      border:1px solid var(--line);
+      border-radius:6px;
+    }
+
+    .btn{
+      padding:9px 14px;
+      border:0;
+      border-radius:6px;
+      cursor:pointer;
+    }
+
+    .primary{
+      background:var(--red);
+      color:white;
+    }
+
+    .approve{
+      background:var(--green);
+      color:white;
+    }
+
+    .reject{
+      background:transparent;
+      color:var(--red);
+      border:1px solid var(--red);
+    }
+
+    .row{
+      display:flex;
+      gap:8px;
+      align-items:center;
+      flex-wrap:wrap;
+    }
+
+    .row input{
+      padding:8px;
+      border:1px solid var(--line);
+      border-radius:5px;
+    }
+
+    .space{
+      justify-content:space-between;
+    }
+
+    .muted{
+      color:var(--soft);
+      font-size:12px;
+    }
+
+    .section{
+      margin-top:28px;
+      border-bottom:1px solid var(--line);
+      padding-bottom:6px;
+    }
+
+    .error{
+      color:var(--red);
+      text-align:center;
+    }
+
+    .hidden{
+      display:none;
+    }
+
+    .tag{
+      font-size:11px;
+      padding:3px 8px;
+      border-radius:20px;
+    }
+
+    .tag-approved{
+      color:var(--green);
+      background:rgba(92,110,73,.12);
+    }
+
+    .tag-rejected{
+      color:var(--red);
+      background:rgba(166,51,31,.10);
+    }
+
+    .mood-score{
+      font-size:12px;
+      font-weight:bold;
+      padding:4px 9px;
+      border-radius:20px;
+      background:rgba(140,106,47,.13);
+      color:var(--gold);
+    }
+
+    .mood-low{
+      color:var(--red);
+      background:rgba(166,51,31,.10);
+    }
+
+    .holiday{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+    }
+  </style>
+</head>
+
+
+<body>
+
+  <!-- ========================= -->
+  <!-- 管理員登入 -->
+  <!-- ========================= -->
+
+  <div
+    id="login"
+    class="login box"
+  >
+
+    <h2>管理員登入</h2>
+
+    <input
+      id="pw"
+      type="password"
+      placeholder="管理員密碼"
+    >
+
+    <button
+      class="btn primary"
+      id="loginBtn"
+    >
+      登入
+    </button>
+
+    <p
+      id="loginErr"
+      class="error"
+    ></p>
+
+  </div>
+
+
+  <!-- ========================= -->
+  <!-- 管理員主畫面 -->
+  <!-- ========================= -->
+
+  <div
+    id="app"
+    class="wrap hidden"
+  >
+
+    <div class="row space">
+
+      <h1>管理員後台</h1>
+
+      <div>
+
+        <button
+          class="btn"
+          id="refresh"
+        >
+          重新整理
+        </button>
+
+        <button
+          class="btn"
+          id="logout"
+        >
+          登出
+        </button>
+
+      </div>
+
+    </div>
+
+
+    <!-- ========================= -->
+    <!-- 待審核 -->
+    <!-- ========================= -->
+
+    <h3 class="section">
+      待審核
+    </h3>
+
+    <div id="pending"></div>
+
+
+    <!-- ========================= -->
+    <!-- 審核紀錄 -->
+    <!-- ========================= -->
+
+    <h3 class="section">
+      審核紀錄
+    </h3>
+
+    <div id="history"></div>
+
+
+    <!-- ========================= -->
+    <!-- 每日心情 -->
+    <!-- ========================= -->
+
+    <h3 class="section">
+      每日心情紀錄
+    </h3>
+
+    <div id="moods"></div>
+
+
+    <!-- ========================= -->
+    <!-- 國定假日 -->
+    <!-- ========================= -->
+
+    <h3 class="section">
+      國定假日
+    </h3>
+
+    <div class="box">
+
+      <div class="row">
+
+        <input
+          id="holidayDate"
+          type="date"
+        >
+
+        <button
+          class="btn primary"
+          id="addHoliday"
+        >
+          新增國定假日
+        </button>
+
+      </div>
+
+      <p class="muted">
+        國定假日當天不需要一般簽到，
+        會自動列入成功簽到。
+      </p>
+
+    </div>
+
+    <div id="holidays"></div>
+
+  </div>
+
+
 <script>
-let adminPassword=''; const $=id=>document.getElementById(id); const esc=s=>{const d=document.createElement('div');d.textContent=s||'';return d.innerHTML};
-async function api(path,opt={}){const h=new Headers(opt.headers||{});h.set('Content-Type','application/json');h.set('X-Admin-Password',adminPassword);const r=await fetch(path,{...opt,headers:h});const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||'伺服器錯誤');return d}
-function fmt(x){if(!x)return'';return new Date(x).toLocaleString('zh-TW')}
-async function login(){adminPassword=$('pw').value;$('loginErr').textContent='';try{await api('/api/admin/requests');sessionStorage.setItem('admin-password',adminPassword);$('login').classList.add('hidden');$('app').classList.remove('hidden');await render()}catch(e){$('loginErr').textContent=e.message;adminPassword=''}}
-async function render(){try{const [rq,hd]=await Promise.all([api('/api/admin/requests'),api('/api/admin/holidays')]);const list=rq.requests||[];const p=list.filter(x=>x.status==='pending'),hist=list.filter(x=>x.status!=='pending');$('pending').innerHTML=p.length?'':'<p class="muted">目前沒有待審核申請</p>';p.forEach(r=>{const d=document.createElement('div');d.className='card';d.innerHTML=`<div class="row space"><b>${esc(r.date)}</b><span class="muted">${fmt(r.submittedAt)}</span></div><p>${esc(r.reason)}</p><div class="row"><button class="btn approve" data-id="${esc(r.id)}" data-a="approve">核准</button><button class="btn reject" data-id="${esc(r.id)}" data-a="reject">婉拒</button></div>`;$('pending').appendChild(d)});$('history').innerHTML=hist.length?'':'<p class="muted">尚無審核紀錄</p>';hist.slice(0,50).forEach(r=>{const d=document.createElement('div');d.className='card';d.innerHTML=`<div class="row space"><b>${esc(r.date)}</b><span class="tag">${r.status==='approved'?'已核准':'已婉拒'}</span></div><p>${esc(r.reason)}</p>${r.reviewNote?`<p class="muted">備註：${esc(r.reviewNote)}</p>`:''}`;$('history').appendChild(d)});document.querySelectorAll('[data-a]').forEach(b=>b.onclick=review);$('holidays').innerHTML='';(hd.holidays||[]).forEach(h=>{const d=document.createElement('div');d.className='card holiday';d.innerHTML=`<span>${esc(h.date)}</span><button class="btn reject" data-date="${esc(h.date)}">刪除</button>`;d.querySelector('button').onclick=()=>removeHoliday(h.date);$('holidays').appendChild(d)})}catch(e){if(e.message.includes('密碼'))logout();else alert('載入失敗：'+e.message)}}
-async function review(e){const id=e.currentTarget.dataset.id,action=e.currentTarget.dataset.a;let reviewNote='';if(action==='reject')reviewNote=prompt('婉拒原因（選填）','')||'';try{const r=await api('/api/admin/review',{method:'POST',body:JSON.stringify({id,action,reviewNote})});if(action==='approve'&&!r.countedAsAttendance)alert('已核准，但該日期為國定假日，因此不計入簽到。');await render()}catch(x){alert(x.message)}}
-async function addHoliday(){const date=$('holidayDate').value;if(!date)return alert('請選日期');try{await api('/api/admin/holidays',{method:'POST',body:JSON.stringify({date})});$('holidayDate').value='';await render()}catch(e){alert(e.message)}}
-async function removeHoliday(date){if(!confirm(`確定刪除 ${date}？`))return;try{await api('/api/admin/holidays?date='+encodeURIComponent(date),{method:'DELETE'});await render()}catch(e){alert(e.message)}}
-function logout(){sessionStorage.removeItem('admin-password');adminPassword='';$('pw').value='';$('app').classList.add('hidden');$('login').classList.remove('hidden')}
-$('loginBtn').onclick=login;$('pw').onkeydown=e=>{if(e.key==='Enter')login()};$('refresh').onclick=render;$('logout').onclick=logout;$('addHoliday').onclick=addHoliday;const saved=sessionStorage.getItem('admin-password');if(saved){adminPassword=saved;api('/api/admin/requests').then(()=>{$('login').classList.add('hidden');$('app').classList.remove('hidden');render()}).catch(()=>logout())}
-</script></body></html>
+
+let adminPassword = '';
+
+const $ = id =>
+  document.getElementById(id);
+
+
+function esc(s){
+
+  const d =
+    document.createElement(
+      'div'
+    );
+
+  d.textContent =
+    s || '';
+
+  return d.innerHTML;
+}
+
+
+async function api(
+  path,
+  opt = {}
+){
+
+  const h =
+    new Headers(
+      opt.headers || {}
+    );
+
+  h.set(
+    'Content-Type',
+    'application/json'
+  );
+
+  h.set(
+    'X-Admin-Password',
+    adminPassword
+  );
+
+  const r =
+    await fetch(
+      path,
+      {
+        ...opt,
+        headers:h,
+        cache:'no-store'
+      }
+    );
+
+  const d =
+    await r.json()
+      .catch(
+        () => ({})
+      );
+
+  if(!r.ok){
+
+    throw new Error(
+      d.error ||
+      '伺服器錯誤'
+    );
+
+  }
+
+  return d;
+}
+
+
+function fmt(x){
+
+  if(!x){
+    return '';
+  }
+
+  return new Date(x)
+    .toLocaleString(
+      'zh-TW',
+      {
+        timeZone:
+          'Asia/Taipei'
+      }
+    );
+}
+
+
+// =====================================================
+// 登入
+// =====================================================
+
+async function login(){
+
+  adminPassword =
+    $('pw').value;
+
+  $('loginErr')
+    .textContent = '';
+
+  try{
+
+    await api(
+      '/api/admin/requests'
+    );
+
+    sessionStorage.setItem(
+      'admin-password',
+      adminPassword
+    );
+
+    $('login')
+      .classList.add(
+        'hidden'
+      );
+
+    $('app')
+      .classList.remove(
+        'hidden'
+      );
+
+    await render();
+
+  }catch(e){
+
+    $('loginErr')
+      .textContent =
+        e.message;
+
+    adminPassword =
+      '';
+
+  }
+
+}
+
+
+// =====================================================
+// 重新整理整個管理員頁
+// =====================================================
+
+async function render(){
+
+  try{
+
+    const [
+      rq,
+      hd,
+      md
+    ] =
+      await Promise.all([
+
+        api(
+          '/api/admin/requests'
+        ),
+
+        api(
+          '/api/admin/holidays'
+        ),
+
+        api(
+          '/api/admin/moods'
+        )
+
+      ]);
+
+
+    // =================================================
+    // 請假資料
+    // =================================================
+
+    const list =
+      rq.requests || [];
+
+    const pendingList =
+      list.filter(
+        x =>
+          x.status ===
+          'pending'
+      );
+
+    const historyList =
+      list.filter(
+        x =>
+          x.status !==
+          'pending'
+      );
+
+
+    // =================================================
+    // 待審核
+    // =================================================
+
+    $('pending')
+      .innerHTML = '';
+
+    if(
+      pendingList.length ===
+      0
+    ){
+
+      $('pending')
+        .innerHTML =
+          '<p class="muted">目前沒有待審核申請</p>';
+
+    }
+
+
+    pendingList
+      .forEach(r => {
+
+        const d =
+          document.createElement(
+            'div'
+          );
+
+        d.className =
+          'card';
+
+
+        d.innerHTML = `
+
+          <div class="row space">
+
+            <b>
+              ${esc(r.date)}
+            </b>
+
+            <span class="muted">
+              ${fmt(r.submittedAt)}
+            </span>
+
+          </div>
+
+          <p>
+            ${esc(r.reason)}
+          </p>
+
+          <div class="row">
+
+            <button
+              class="btn approve"
+              data-id="${esc(r.id)}"
+              data-a="approve"
+            >
+              核准
+            </button>
+
+            <button
+              class="btn reject"
+              data-id="${esc(r.id)}"
+              data-a="reject"
+            >
+              婉拒
+            </button>
+
+          </div>
+        `;
+
+
+        $('pending')
+          .appendChild(d);
+
+      });
+
+
+    // =================================================
+    // 審核紀錄
+    // =================================================
+
+    $('history')
+      .innerHTML = '';
+
+    if(
+      historyList.length ===
+      0
+    ){
+
+      $('history')
+        .innerHTML =
+          '<p class="muted">尚無審核紀錄</p>';
+
+    }
+
+
+    historyList
+      .slice(
+        0,
+        50
+      )
+      .forEach(r => {
+
+        const d =
+          document.createElement(
+            'div'
+          );
+
+        d.className =
+          'card';
+
+
+        const tagClass =
+          r.status ===
+          'approved'
+            ? 'tag-approved'
+            : 'tag-rejected';
+
+
+        const tagText =
+          r.status ===
+          'approved'
+            ? '已核准・列入簽到'
+            : '已婉拒';
+
+
+        d.innerHTML = `
+
+          <div class="row space">
+
+            <b>
+              ${esc(r.date)}
+            </b>
+
+            <span class="tag ${tagClass}">
+              ${tagText}
+            </span>
+
+          </div>
+
+          <p>
+            ${esc(r.reason)}
+          </p>
+
+          ${
+            r.reviewNote
+              ? `
+                <p class="muted">
+                  備註：
+                  ${esc(r.reviewNote)}
+                </p>
+              `
+              : ''
+          }
+
+        `;
+
+
+        $('history')
+          .appendChild(d);
+
+      });
+
+
+    document
+      .querySelectorAll(
+        '[data-a]'
+      )
+      .forEach(
+        b =>
+          b.onclick =
+            review
+      );
+
+
+    // =================================================
+    // 每日心情紀錄
+    // =================================================
+
+    $('moods')
+      .innerHTML = '';
+
+    const moods =
+      md.moods || [];
+
+
+    if(
+      moods.length ===
+      0
+    ){
+
+      $('moods')
+        .innerHTML =
+          '<p class="muted">尚無心情紀錄</p>';
+
+    }else{
+
+      moods
+        .slice(
+          0,
+          100
+        )
+        .forEach(m => {
+
+          const d =
+            document.createElement(
+              'div'
+            );
+
+          d.className =
+            'card';
+
+
+          const score =
+            Number(
+              m.score || 0
+            );
+
+
+          const scoreClass =
+            score < 3
+              ? 'mood-score mood-low'
+              : 'mood-score';
+
+
+          const reason =
+            m.reason
+              ? esc(m.reason)
+              : '—';
+
+
+          d.innerHTML = `
+
+            <div class="row space">
+
+              <b>
+                ${esc(m.date)}
+              </b>
+
+              <span class="${scoreClass}">
+                心情 ${score} / 5
+              </span>
+
+            </div>
+
+            <p>
+              原因：
+              ${reason}
+            </p>
+
+            <p class="muted">
+              送出時間：
+              ${fmt(m.submittedAt)}
+            </p>
+
+          `;
+
+
+          $('moods')
+            .appendChild(d);
+
+        });
+
+    }
+
+
+    // =================================================
+    // 國定假日
+    // =================================================
+
+    $('holidays')
+      .innerHTML = '';
+
+
+    const holidays =
+      hd.holidays || [];
+
+
+    if(
+      holidays.length ===
+      0
+    ){
+
+      $('holidays')
+        .innerHTML =
+          '<p class="muted">目前沒有設定國定假日</p>';
+
+    }
+
+
+    holidays
+      .forEach(h => {
+
+        const d =
+          document.createElement(
+            'div'
+          );
+
+        d.className =
+          'card holiday';
+
+
+        d.innerHTML = `
+
+          <span>
+            ${esc(h.date)}
+          </span>
+
+          <button
+            class="btn reject"
+            data-date="${esc(h.date)}"
+          >
+            刪除
+          </button>
+
+        `;
+
+
+        d.querySelector(
+          'button'
+        ).onclick =
+          () =>
+            removeHoliday(
+              h.date
+            );
+
+
+        $('holidays')
+          .appendChild(d);
+
+      });
+
+
+  }catch(e){
+
+    if(
+      e.message.includes(
+        '密碼'
+      )
+    ){
+
+      logout();
+
+    }else{
+
+      alert(
+        '載入失敗：' +
+        e.message
+      );
+
+    }
+
+  }
+
+}
+
+
+// =====================================================
+// 核准 / 拒絕請假
+// =====================================================
+
+async function review(e){
+
+  const id =
+    e.currentTarget
+      .dataset.id;
+
+  const action =
+    e.currentTarget
+      .dataset.a;
+
+
+  let reviewNote =
+    '';
+
+
+  if(
+    action ===
+    'reject'
+  ){
+
+    reviewNote =
+      prompt(
+        '婉拒原因（選填）',
+        ''
+      ) || '';
+
+  }
+
+
+  try{
+
+    await api(
+      '/api/admin/review',
+      {
+        method:'POST',
+
+        body:
+          JSON.stringify({
+            id,
+            action,
+            reviewNote
+          })
+      }
+    );
+
+
+    await render();
+
+
+  }catch(x){
+
+    alert(
+      x.message
+    );
+
+  }
+
+}
+
+
+// =====================================================
+// 新增國定假日
+// =====================================================
+
+async function addHoliday(){
+
+  const date =
+    $('holidayDate')
+      .value;
+
+
+  if(!date){
+
+    alert(
+      '請選日期'
+    );
+
+    return;
+
+  }
+
+
+  try{
+
+    await api(
+      '/api/admin/holidays',
+      {
+        method:'POST',
+
+        body:
+          JSON.stringify({
+            date
+          })
+      }
+    );
+
+
+    $('holidayDate')
+      .value =
+        '';
+
+
+    await render();
+
+
+  }catch(e){
+
+    alert(
+      e.message
+    );
+
+  }
+
+}
+
+
+// =====================================================
+// 刪除國定假日
+// =====================================================
+
+async function removeHoliday(
+  date
+){
+
+  if(
+    !confirm(
+      `確定刪除 ${date}？`
+    )
+  ){
+
+    return;
+
+  }
+
+
+  try{
+
+    await api(
+      '/api/admin/holidays?date=' +
+      encodeURIComponent(
+        date
+      ),
+      {
+        method:'DELETE'
+      }
+    );
+
+
+    await render();
+
+
+  }catch(e){
+
+    alert(
+      e.message
+    );
+
+  }
+
+}
+
+
+// =====================================================
+// 登出
+// =====================================================
+
+function logout(){
+
+  sessionStorage
+    .removeItem(
+      'admin-password'
+    );
+
+
+  adminPassword =
+    '';
+
+
+  $('pw').value =
+    '';
+
+
+  $('app')
+    .classList.add(
+      'hidden'
+    );
+
+
+  $('login')
+    .classList.remove(
+      'hidden'
+    );
+
+}
+
+
+// =====================================================
+// 按鈕
+// =====================================================
+
+$('loginBtn')
+  .onclick =
+    login;
+
+
+$('pw')
+  .onkeydown =
+    e => {
+
+      if(
+        e.key ===
+        'Enter'
+      ){
+
+        login();
+
+      }
+
+    };
+
+
+$('refresh')
+  .onclick =
+    render;
+
+
+$('logout')
+  .onclick =
+    logout;
+
+
+$('addHoliday')
+  .onclick =
+    addHoliday;
+
+
+// =====================================================
+// 自動登入
+// =====================================================
+
+const saved =
+  sessionStorage
+    .getItem(
+      'admin-password'
+    );
+
+
+if(saved){
+
+  adminPassword =
+    saved;
+
+
+  api(
+    '/api/admin/requests'
+  )
+    .then(
+      () => {
+
+        $('login')
+          .classList.add(
+            'hidden'
+          );
+
+
+        $('app')
+          .classList.remove(
+            'hidden'
+          );
+
+
+        render();
+
+      }
+    )
+    .catch(
+      () =>
+        logout()
+    );
+
+}
+
+</script>
+
+</body>
+</html>
