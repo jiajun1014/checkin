@@ -40,15 +40,21 @@ function isAdmin(request, env) {
 // =========================================================
 
 const CHECKIN_SCHEDULE = {
-  1: { start: "09:00", end: "10:00" }, // 星期一
+  1: { start: "09:00", end: "20:00" }, // 星期一
   2: { start: "09:00", end: "10:00" }, // 星期二
   4: { start: "09:00", end: "10:00" }  // 星期四
 };
 
 // 簽到地點：輔仁大學
+// const CHECKIN_AREA = {
+//   latitude: 25.033649,
+//   longitude: 121.433255,
+//   radiusMeters: 200
+// };
+// 簽到地點：國立中興大學
 const CHECKIN_AREA = {
-  latitude: 25.033649,
-  longitude: 121.433255,
+  latitude: 24.123806,
+  longitude: 120.675194,
   radiusMeters: 200
 };
 
