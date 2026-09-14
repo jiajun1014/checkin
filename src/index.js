@@ -24,41 +24,31 @@ async function readJson(request) {
 function corsHeaders(request) {
   return {
     "Access-Control-Allow-Origin": new URL(request.url).origin,
-    "Access-Control-Allow-Headers":
-      "Content-Type, X-Admin-Password, X-User-Token",
-    "Access-Control-Allow-Methods":
-      "GET, POST, DELETE, OPTIONS"
+    "Access-Control-Allow-Headers": "Content-Type, X-Admin-Password, X-User-Token",
+    "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS"
   };
 }
 
 function isAdmin(request, env) {
   const password = request.headers.get("X-Admin-Password");
-
-  return Boolean(env.ADMIN_PASSWORD) &&
-    password === env.ADMIN_PASSWORD;
+  return Boolean(env.ADMIN_PASSWORD) && password === env.ADMIN_PASSWORD;
 }
 
 // =========================================================
-// 簽到時間
+// 簽到設定
 // 星期一、星期二、星期四 09:00～10:00
 // =========================================================
 
 const CHECKIN_SCHEDULE = {
-  1: { start: "09:00", end: "21:00" },
-  2: { start: "09:00", end: "10:00" },
-  4: { start: "09:00", end: "10:00" }
+  1: { start: "09:00", end: "10:00" }, // 星期一
+  2: { start: "09:00", end: "10:00" }, // 星期二
+  4: { start: "09:00", end: "10:00" }  // 星期四
 };
 
-// // 輔仁大學
-// const CHECKIN_AREA = {
-//   latitude: 25.033649,
-//   longitude: 121.433255,
-//   radiusMeters: 200
-// };
-// 簽到地點：國立中興大學
+// 簽到地點：輔仁大學
 const CHECKIN_AREA = {
-  latitude: 24.123806,
-  longitude: 120.675194,
+  latitude: 25.033649,
+  longitude: 121.433255,
   radiusMeters: 200
 };
 
@@ -75,11 +65,7 @@ function distanceMeters(lat1, lon1, lat2, lon2) {
     Math.cos(toRad(lat2)) *
     Math.sin(dLon / 2) ** 2;
 
-  return R * 2 *
-    Math.atan2(
-      Math.sqrt(a),
-      Math.sqrt(1 - a)
-    );
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
 function getTaiwanTime() {
@@ -97,7 +83,6 @@ function getTaiwanTime() {
   }).formatToParts(now);
 
   const obj = {};
-
   for (const part of parts) {
     obj[part.type] = part.value;
   }
@@ -120,17 +105,11 @@ function getTaiwanTime() {
 }
 
 function isAllowedCheckinTime(taiwan) {
-  const schedule =
-    CHECKIN_SCHEDULE[taiwan.weekday];
+  const schedule = CHECKIN_SCHEDULE[taiwan.weekday];
+  if (!schedule) return false;
 
-  if (!schedule) {
-    return false;
-  }
-
-  return (
-    taiwan.time >= schedule.start &&
-    taiwan.time <= schedule.end
-  );
+  return taiwan.time >= schedule.start &&
+         taiwan.time <= schedule.end;
 }
 
 function getScheduleText() {
@@ -142,26 +121,18 @@ async function isHoliday(env, date) {
     SELECT date
     FROM holidays
     WHERE date = ?
-  `)
-    .bind(date)
-    .first();
+  `).bind(date).first();
 
   return Boolean(row);
 }
 
-async function hasSuccessfulAttendance(
-  env,
-  token,
-  date
-) {
+async function hasSuccessfulAttendance(env, token, date) {
   const row = await env.DB.prepare(`
     SELECT id
     FROM checkins
     WHERE requester_token = ?
       AND date = ?
-  `)
-    .bind(token, date)
-    .first();
+  `).bind(token, date).first();
 
   return Boolean(row);
 }
@@ -179,96 +150,62 @@ export default {
     }
 
     try {
-
       // =====================================================
-      // 今日狀態
+      // 使用者：今日狀態
       // =====================================================
-
-      if (
-        url.pathname === "/api/status" &&
-        request.method === "GET"
-      ) {
-        const token =
-          request.headers.get("X-User-Token");
-
+      if (url.pathname === "/api/status" && request.method === "GET") {
+        const token = request.headers.get("X-User-Token");
         const taiwan = getTaiwanTime();
 
-        const holiday =
-          await isHoliday(env, taiwan.date);
+        const holiday = await isHoliday(env, taiwan.date);
 
         const attendedByRecord = token
-          ? await hasSuccessfulAttendance(
-              env,
-              token,
-              taiwan.date
-            )
+          ? await hasSuccessfulAttendance(env, token, taiwan.date)
           : false;
 
-        // 國定假日本身就是成功簽到
-        const attended =
-          holiday || attendedByRecord;
+        // 國定假日本身就視為成功簽到
+        const attended = holiday || attendedByRecord;
 
         return json({
           date: taiwan.date,
           time: taiwan.time,
           weekday: taiwan.weekday,
           isHoliday: holiday,
-          isAllowedTime:
-            isAllowedCheckinTime(taiwan),
+          isAllowedTime: isAllowedCheckinTime(taiwan),
           attended,
           scheduleText: getScheduleText()
         }, 200, cors);
       }
 
       // =====================================================
-      // 一般 GPS 簽到
+      // 使用者：GPS 簽到
       // =====================================================
-
-      if (
-        url.pathname === "/api/checkin" &&
-        request.method === "POST"
-      ) {
+      if (url.pathname === "/api/checkin" && request.method === "POST") {
         const body = await readJson(request);
-
-        const token =
-          request.headers.get("X-User-Token");
+        const token = request.headers.get("X-User-Token");
 
         if (!token) {
-          return json({
-            error: "缺少使用者識別"
-          }, 401, cors);
+          return json({ error: "缺少使用者識別" }, 401, cors);
         }
 
-        const latitude =
-          Number(body?.latitude);
+        const latitude = Number(body?.latitude);
+        const longitude = Number(body?.longitude);
 
-        const longitude =
-          Number(body?.longitude);
-
-        if (
-          !Number.isFinite(latitude) ||
-          !Number.isFinite(longitude)
-        ) {
-          return json({
-            error: "無法取得有效的位置"
-          }, 400, cors);
+        if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+          return json({ error: "無法取得有效的位置" }, 400, cors);
         }
 
         const taiwan = getTaiwanTime();
 
-        if (
-          await isHoliday(env, taiwan.date)
-        ) {
+        if (await isHoliday(env, taiwan.date)) {
           return json({
-            error:
-              "今天是國定假日，已自動列入成功簽到"
+            error: "今天是國定假日，已自動列入成功簽到"
           }, 403, cors);
         }
 
         if (!isAllowedCheckinTime(taiwan)) {
           return json({
-            error:
-              `目前不在開放簽到時間。簽到時間為${getScheduleText()}`
+            error: `目前不在開放簽到時間。簽到時間為${getScheduleText()}`
           }, 403, cors);
         }
 
@@ -279,26 +216,15 @@ export default {
           CHECKIN_AREA.longitude
         );
 
-        if (
-          distance >
-          CHECKIN_AREA.radiusMeters
-        ) {
+        if (distance > CHECKIN_AREA.radiusMeters) {
           return json({
-            error:
-              `目前距離簽到地點約 ${Math.round(distance)} 公尺，超出允許範圍`
+            error: `目前距離簽到地點約 ${Math.round(distance)} 公尺，超出允許範圍`
           }, 403, cors);
         }
 
-        if (
-          await hasSuccessfulAttendance(
-            env,
-            token,
-            taiwan.date
-          )
-        ) {
+        if (await hasSuccessfulAttendance(env, token, taiwan.date)) {
           return json({
-            error:
-              "今天已經有成功簽到或核准請假紀錄"
+            error: "今天已經有成功簽到或核准請假紀錄"
           }, 409, cors);
         }
 
@@ -314,16 +240,14 @@ export default {
             source
           )
           VALUES (?, ?, ?, ?, ?, ?, 'checkin')
-        `)
-          .bind(
-            taiwan.date,
-            new Date().toISOString(),
-            token,
-            latitude,
-            longitude,
-            Math.round(distance)
-          )
-          .run();
+        `).bind(
+          taiwan.date,
+          new Date().toISOString(),
+          token,
+          latitude,
+          longitude,
+          Math.round(distance)
+        ).run();
 
         return json({
           ok: true,
@@ -335,61 +259,37 @@ export default {
       }
 
       // =====================================================
-      // 送出請假
+      // 使用者：送出請假
       // =====================================================
-
-      if (
-        url.pathname === "/api/requests" &&
-        request.method === "POST"
-      ) {
-        const body =
-          await readJson(request);
+      if (url.pathname === "/api/requests" && request.method === "POST") {
+        const body = await readJson(request);
 
         const token =
           request.headers.get("X-User-Token") ||
           body?.requesterToken;
 
-        if (
-          !body?.id ||
-          !body?.reason ||
-          !token
-        ) {
-          return json({
-            error: "缺少必要資料"
-          }, 400, cors);
+        if (!body?.id || !body?.reason || !token) {
+          return json({ error: "缺少必要資料" }, 400, cors);
         }
 
-        const requestDate =
-          String(
-            body.date ||
-            getTaiwanTime().date
-          ).slice(0, 10);
+        const requestDate = String(
+          body.date || getTaiwanTime().date
+        ).slice(0, 10);
 
-        if (
-          await isHoliday(
-            env,
-            requestDate
-          )
-        ) {
+        if (await isHoliday(env, requestDate)) {
           return json({
-            error:
-              "這一天是國定假日，已自動列入成功簽到，不需要請假"
+            error: "這一天是國定假日，已自動列入成功簽到，不需要請假"
           }, 403, cors);
         }
 
-        const existing =
-          await env.DB.prepare(`
-            SELECT id
-            FROM leave_requests
-            WHERE id = ?
-          `)
-            .bind(body.id)
-            .first();
+        const existing = await env.DB.prepare(`
+          SELECT id
+          FROM leave_requests
+          WHERE id = ?
+        `).bind(body.id).first();
 
         if (existing) {
-          return json({
-            error: "申請編號已存在"
-          }, 409, cors);
+          return json({ error: "申請編號已存在" }, 409, cors);
         }
 
         await env.DB.prepare(`
@@ -403,17 +303,13 @@ export default {
             requester_token
           )
           VALUES (?, ?, ?, 'pending', ?, ?)
-        `)
-          .bind(
-            String(body.id).slice(0, 100),
-            requestDate,
-            String(body.reason)
-              .slice(0, 1000),
-            new Date().toISOString(),
-            String(token)
-              .slice(0, 200)
-          )
-          .run();
+        `).bind(
+          String(body.id).slice(0, 100),
+          requestDate,
+          String(body.reason).slice(0, 1000),
+          new Date().toISOString(),
+          String(token).slice(0, 200)
+        ).run();
 
         return json({
           ok: true,
@@ -422,125 +318,80 @@ export default {
       }
 
       // =====================================================
-      // 查看自己的請假紀錄
+      // 使用者：查看自己的請假紀錄
       // =====================================================
-
       if (
-        url.pathname ===
-          "/api/employee/requests" &&
+        url.pathname === "/api/employee/requests" &&
         request.method === "GET"
       ) {
-        const token =
-          request.headers.get(
-            "X-User-Token"
-          );
+        const token = request.headers.get("X-User-Token");
 
         if (!token) {
-          return json({
-            error: "缺少使用者識別"
-          }, 401, cors);
+          return json({ error: "缺少使用者識別" }, 401, cors);
         }
 
-        const result =
-          await env.DB.prepare(`
-            SELECT
-              id,
-              date,
-              reason,
-              status,
-              submitted_at AS submittedAt,
-              reviewed_at AS reviewedAt,
-              review_note AS reviewNote
-            FROM leave_requests
-            WHERE requester_token = ?
-            ORDER BY submitted_at DESC
-          `)
-            .bind(token)
-            .all();
+        const result = await env.DB.prepare(`
+          SELECT
+            id,
+            date,
+            reason,
+            status,
+            submitted_at AS submittedAt,
+            reviewed_at AS reviewedAt,
+            review_note AS reviewNote
+          FROM leave_requests
+          WHERE requester_token = ?
+          ORDER BY submitted_at DESC
+        `).bind(token).all();
 
         return json({
-          requests:
-            result.results || []
+          requests: result.results || []
         }, 200, cors);
       }
 
       // =====================================================
-      // 心情
+      // 使用者：送出心情
+      // 1～5 分；低於 3 分必須填原因
       // =====================================================
-
-      if (
-        url.pathname === "/api/mood" &&
-        request.method === "POST"
-      ) {
-        const token =
-          request.headers.get(
-            "X-User-Token"
-          );
-
-        const body =
-          await readJson(request);
+      if (url.pathname === "/api/mood" && request.method === "POST") {
+        const token = request.headers.get("X-User-Token");
+        const body = await readJson(request);
 
         if (!token) {
-          return json({
-            error: "缺少使用者識別"
-          }, 401, cors);
+          return json({ error: "缺少使用者識別" }, 401, cors);
         }
 
-        const score =
-          Number(body?.score);
+        const score = Number(body?.score);
+        const reason = String(body?.reason || "").trim();
+        const taiwan = getTaiwanTime();
 
-        const reason =
-          String(
-            body?.reason || ""
-          ).trim();
-
-        const taiwan =
-          getTaiwanTime();
-
-        if (
-          !Number.isInteger(score) ||
-          score < 1 ||
-          score > 5
-        ) {
+        if (!Number.isInteger(score) || score < 1 || score > 5) {
           return json({
-            error:
-              "心情指數必須是 1 到 5 分"
+            error: "心情指數必須是 1 到 5 分"
           }, 400, cors);
         }
 
-        if (
-          score < 3 &&
-          !reason
-        ) {
+        if (score < 3 && !reason) {
           return json({
-            error:
-              "心情低於 3 分時，請填寫原因"
+            error: "心情低於 3 分時，請填寫原因"
           }, 400, cors);
         }
 
-        if (
-          await isHoliday(
-            env,
-            taiwan.date
-          )
-        ) {
+        if (await isHoliday(env, taiwan.date)) {
           return json({
-            error:
-              "今天是國定假日，不需要填寫簽到心情"
+            error: "今天是國定假日，不需要填寫簽到心情"
           }, 403, cors);
         }
 
-        const attended =
-          await hasSuccessfulAttendance(
-            env,
-            token,
-            taiwan.date
-          );
+        const attended = await hasSuccessfulAttendance(
+          env,
+          token,
+          taiwan.date
+        );
 
         if (!attended) {
           return json({
-            error:
-              "今天尚未完成簽到，或請假尚未核准"
+            error: "今天尚未完成簽到，或請假尚未核准"
           }, 403, cors);
         }
 
@@ -561,59 +412,49 @@ export default {
             score = excluded.score,
             reason = excluded.reason,
             submitted_at = excluded.submitted_at
-        `)
-          .bind(
-            taiwan.date,
-            token,
-            score,
-            reason || null,
-            new Date().toISOString()
-          )
-          .run();
+        `).bind(
+          taiwan.date,
+          token,
+          score,
+          reason || null,
+          new Date().toISOString()
+        ).run();
 
         return json({
           ok: true,
           score,
-          reason:
-            reason || null
+          reason: reason || null
         }, 200, cors);
       }
 
+      // =====================================================
+      // 使用者：今日心情
+      // =====================================================
       if (
-        url.pathname ===
-          "/api/mood/today" &&
+        url.pathname === "/api/mood/today" &&
         request.method === "GET"
       ) {
-        const token =
-          request.headers.get(
-            "X-User-Token"
-          );
+        const token = request.headers.get("X-User-Token");
 
         if (!token) {
-          return json({
-            error: "缺少使用者識別"
-          }, 401, cors);
+          return json({ error: "缺少使用者識別" }, 401, cors);
         }
 
-        const taiwan =
-          getTaiwanTime();
+        const taiwan = getTaiwanTime();
 
-        const mood =
-          await env.DB.prepare(`
-            SELECT
-              date,
-              score,
-              reason,
-              submitted_at AS submittedAt
-            FROM daily_moods
-            WHERE requester_token = ?
-              AND date = ?
-          `)
-            .bind(
-              token,
-              taiwan.date
-            )
-            .first();
+        const mood = await env.DB.prepare(`
+          SELECT
+            date,
+            score,
+            reason,
+            submitted_at AS submittedAt
+          FROM daily_moods
+          WHERE requester_token = ?
+            AND date = ?
+        `).bind(
+          token,
+          taiwan.date
+        ).first();
 
         return json({
           mood: mood || null
@@ -621,99 +462,62 @@ export default {
       }
 
       // =====================================================
-      // 累積成功簽到
+      // 使用者：累積成功簽到
       //
       // 一般簽到 + 核准請假 + 國定假日
       // 同一天只算一次
       // =====================================================
-
-      if (
-        url.pathname === "/api/stats" &&
-        request.method === "GET"
-      ) {
-        const token =
-          request.headers.get(
-            "X-User-Token"
-          );
+      if (url.pathname === "/api/stats" && request.method === "GET") {
+        const token = request.headers.get("X-User-Token");
 
         if (!token) {
-          return json({
-            error: "缺少使用者識別"
-          }, 401, cors);
+          return json({ error: "缺少使用者識別" }, 401, cors);
         }
 
-        const taiwan =
-          getTaiwanTime();
+        const taiwan = getTaiwanTime();
 
-        const checkinResult =
-          await env.DB.prepare(`
-            SELECT
-              date,
-              source
-            FROM checkins
-            WHERE requester_token = ?
-              AND date <= ?
-            ORDER BY date ASC
-          `)
-            .bind(
-              token,
-              taiwan.date
-            )
-            .all();
+        const checkinResult = await env.DB.prepare(`
+          SELECT
+            date,
+            source
+          FROM checkins
+          WHERE requester_token = ?
+            AND date <= ?
+          ORDER BY date ASC
+        `).bind(
+          token,
+          taiwan.date
+        ).all();
 
-        const holidayResult =
-          await env.DB.prepare(`
-            SELECT date
-            FROM holidays
-            WHERE date <= ?
-            ORDER BY date ASC
-          `)
-            .bind(taiwan.date)
-            .all();
+        const holidayResult = await env.DB.prepare(`
+          SELECT date
+          FROM holidays
+          WHERE date <= ?
+          ORDER BY date ASC
+        `).bind(
+          taiwan.date
+        ).all();
 
-        const byDate =
-          new Map();
+        const byDate = new Map();
 
         // 先放國定假日
-        for (
-          const row of
-          holidayResult.results || []
-        ) {
-          byDate.set(
-            row.date,
-            {
-              date: row.date,
-              source: "holiday"
-            }
-          );
+        for (const row of holidayResult.results || []) {
+          byDate.set(row.date, {
+            date: row.date,
+            source: "holiday"
+          });
         }
 
-        // 若同一天有實際簽到或核准請假，
-        // 會覆蓋 holiday，但仍只算一天
-        for (
-          const row of
-          checkinResult.results || []
-        ) {
-          byDate.set(
-            row.date,
-            {
-              date: row.date,
-              source:
-                row.source ||
-                "checkin"
-            }
-          );
+        // 同一天若也有一般簽到/核准請假，覆蓋來源但仍只算一天
+        for (const row of checkinResult.results || []) {
+          byDate.set(row.date, {
+            date: row.date,
+            source: row.source || "checkin"
+          });
         }
 
-        const records =
-          Array.from(
-            byDate.values()
-          ).sort(
-            (a, b) =>
-              a.date.localeCompare(
-                b.date
-              )
-          );
+        const records = Array.from(byDate.values())
+          .sort((a, b) => a.date.localeCompare(b.date));
 
         return json({
           total: records.length,
@@ -722,131 +526,91 @@ export default {
       }
 
       // =====================================================
-      // 管理員：查看請假
+      // Admin：查看所有請假
       // =====================================================
-
       if (
-        url.pathname ===
-          "/api/admin/requests" &&
+        url.pathname === "/api/admin/requests" &&
         request.method === "GET"
       ) {
-        if (
-          !isAdmin(
-            request,
-            env
-          )
-        ) {
+        if (!isAdmin(request, env)) {
           return json({
-            error:
-              "管理者密碼錯誤"
+            error: "管理者密碼錯誤"
           }, 401, cors);
         }
 
-        const result =
-          await env.DB.prepare(`
-            SELECT
-              id,
-              date,
-              reason,
-              status,
-              submitted_at AS submittedAt,
-              reviewed_at AS reviewedAt,
-              review_note AS reviewNote
-            FROM leave_requests
-            ORDER BY
-              CASE
-                WHEN status = 'pending'
-                THEN 0
-                ELSE 1
-              END,
-              submitted_at DESC
-          `)
-            .all();
+        const result = await env.DB.prepare(`
+          SELECT
+            id,
+            date,
+            reason,
+            status,
+            submitted_at AS submittedAt,
+            reviewed_at AS reviewedAt,
+            review_note AS reviewNote
+          FROM leave_requests
+          ORDER BY
+            CASE WHEN status = 'pending' THEN 0 ELSE 1 END,
+            submitted_at DESC
+        `).all();
 
         return json({
-          requests:
-            result.results || []
+          requests: result.results || []
         }, 200, cors);
       }
 
       // =====================================================
-      // 管理員：核准 / 拒絕請假
+      // Admin：核准 / 拒絕請假
+      // 核准後會列入成功簽到
       // =====================================================
-
       if (
-        url.pathname ===
-          "/api/admin/review" &&
+        url.pathname === "/api/admin/review" &&
         request.method === "POST"
       ) {
-        if (
-          !isAdmin(
-            request,
-            env
-          )
-        ) {
+        if (!isAdmin(request, env)) {
           return json({
-            error:
-              "管理者密碼錯誤"
+            error: "管理者密碼錯誤"
           }, 401, cors);
         }
 
-        const body =
-          await readJson(request);
+        const body = await readJson(request);
 
         if (
           !body?.id ||
-          ![
-            "approve",
-            "reject"
-          ].includes(
-            body.action
-          )
+          !["approve", "reject"].includes(body.action)
         ) {
           return json({
-            error:
-              "操作資料錯誤"
+            error: "操作資料錯誤"
           }, 400, cors);
         }
 
-        const leave =
-          await env.DB.prepare(`
-            SELECT
-              id,
-              date,
-              requester_token,
-              status
-            FROM leave_requests
-            WHERE id = ?
-          `)
-            .bind(body.id)
-            .first();
+        const leave = await env.DB.prepare(`
+          SELECT
+            id,
+            date,
+            requester_token,
+            status
+          FROM leave_requests
+          WHERE id = ?
+        `).bind(body.id).first();
 
         if (!leave) {
           return json({
-            error:
-              "找不到請假申請"
+            error: "找不到請假申請"
           }, 404, cors);
         }
 
-        if (
-          leave.status !==
-          "pending"
-        ) {
+        if (leave.status !== "pending") {
           return json({
-            error:
-              "這筆申請已經審核過"
+            error: "這筆申請已經審核過"
           }, 409, cors);
         }
 
         const status =
-          body.action ===
-          "approve"
+          body.action === "approve"
             ? "approved"
             : "rejected";
 
-        const reviewedAt =
-          new Date()
-            .toISOString();
+        const reviewedAt = new Date().toISOString();
 
         await env.DB.prepare(`
           UPDATE leave_requests
@@ -856,25 +620,16 @@ export default {
             review_note = ?
           WHERE id = ?
             AND status = 'pending'
-        `)
-          .bind(
-            status,
-            reviewedAt,
-            String(
-              body.reviewNote || ""
-            ).slice(0, 1000),
-            body.id
-          )
-          .run();
+        `).bind(
+          status,
+          reviewedAt,
+          String(body.reviewNote || "").slice(0, 1000),
+          body.id
+        ).run();
 
-        let countedAsAttendance =
-          false;
+        let countedAsAttendance = false;
 
-        // 核准請假直接寫進成功簽到
-        if (
-          status ===
-          "approved"
-        ) {
+        if (status === "approved") {
           await env.DB.prepare(`
             INSERT OR IGNORE INTO checkins
             (
@@ -886,25 +641,14 @@ export default {
               distance_m,
               source
             )
-            VALUES (
-              ?,
-              ?,
-              ?,
-              NULL,
-              NULL,
-              NULL,
-              'leave'
-            )
-          `)
-            .bind(
-              leave.date,
-              reviewedAt,
-              leave.requester_token
-            )
-            .run();
+            VALUES (?, ?, ?, NULL, NULL, NULL, 'leave')
+          `).bind(
+            leave.date,
+            reviewedAt,
+            leave.requester_token
+          ).run();
 
-          countedAsAttendance =
-            true;
+          countedAsAttendance = true;
         }
 
         return json({
@@ -915,86 +659,55 @@ export default {
       }
 
       // =====================================================
-      // 管理員：查看國定假日
+      // Admin：取得國定假日
       // =====================================================
-
       if (
-        url.pathname ===
-          "/api/admin/holidays" &&
+        url.pathname === "/api/admin/holidays" &&
         request.method === "GET"
       ) {
-        if (
-          !isAdmin(
-            request,
-            env
-          )
-        ) {
+        if (!isAdmin(request, env)) {
           return json({
-            error:
-              "管理者密碼錯誤"
+            error: "管理者密碼錯誤"
           }, 401, cors);
         }
 
-        const result =
-          await env.DB.prepare(`
-            SELECT date
-            FROM holidays
-            ORDER BY date ASC
-          `)
-            .all();
+        const result = await env.DB.prepare(`
+          SELECT date
+          FROM holidays
+          ORDER BY date ASC
+        `).all();
 
         return json({
-          holidays:
-            result.results || []
+          holidays: result.results || []
         }, 200, cors);
       }
 
       // =====================================================
-      // 管理員：新增國定假日
+      // Admin：新增國定假日
       // =====================================================
-
       if (
-        url.pathname ===
-          "/api/admin/holidays" &&
+        url.pathname === "/api/admin/holidays" &&
         request.method === "POST"
       ) {
-        if (
-          !isAdmin(
-            request,
-            env
-          )
-        ) {
+        if (!isAdmin(request, env)) {
           return json({
-            error:
-              "管理者密碼錯誤"
+            error: "管理者密碼錯誤"
           }, 401, cors);
         }
 
-        const body =
-          await readJson(request);
+        const body = await readJson(request);
+        const date = String(body?.date || "").trim();
 
-        const date =
-          String(
-            body?.date || ""
-          ).trim();
-
-        if (
-          !/^\d{4}-\d{2}-\d{2}$/
-            .test(date)
-        ) {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
           return json({
-            error:
-              "日期格式錯誤，請使用 YYYY-MM-DD"
+            error: "日期格式錯誤，請使用 YYYY-MM-DD"
           }, 400, cors);
         }
 
         await env.DB.prepare(`
-          INSERT OR IGNORE
-          INTO holidays (date)
+          INSERT OR IGNORE INTO holidays (date)
           VALUES (?)
-        `)
-          .bind(date)
-          .run();
+        `).bind(date).run();
 
         return json({
           ok: true,
@@ -1003,49 +716,32 @@ export default {
       }
 
       // =====================================================
-      // 管理員：刪除國定假日
+      // Admin：刪除國定假日
       // =====================================================
-
-           if (
-        url.pathname ===
-          "/api/admin/holidays" &&
+      if (
+        url.pathname === "/api/admin/holidays" &&
         request.method === "DELETE"
       ) {
-        if (
-          !isAdmin(
-            request,
-            env
-          )
-        ) {
+        if (!isAdmin(request, env)) {
           return json({
-            error:
-              "管理者密碼錯誤"
+            error: "管理者密碼錯誤"
           }, 401, cors);
         }
 
-        const date =
-          String(
-            url.searchParams.get(
-              "date"
-            ) || ""
-          ).trim();
+        const date = String(
+          url.searchParams.get("date") || ""
+        ).trim();
 
-        if (
-          !/^\d{4}-\d{2}-\d{2}$/
-            .test(date)
-        ) {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
           return json({
-            error:
-              "日期格式錯誤"
+            error: "日期格式錯誤"
           }, 400, cors);
         }
 
         await env.DB.prepare(`
           DELETE FROM holidays
           WHERE date = ?
-        `)
-          .bind(date)
-          .run();
+        `).bind(date).run();
 
         return json({
           ok: true,
@@ -1054,15 +750,14 @@ export default {
       }
 
       // =====================================================
-      // 重新開始全部紀錄
+      // 使用者：重新開始全部紀錄
+      // 系統只有一個使用者，所以直接清空相關資料
       // =====================================================
-
       if (
         url.pathname === "/api/reset" &&
         request.method === "POST"
       ) {
-        const token =
-          request.headers.get("X-User-Token");
+        const token = request.headers.get("X-User-Token");
 
         if (!token) {
           return json({
@@ -1095,34 +790,20 @@ export default {
       // =====================================================
       // 靜態網站
       // =====================================================
-
-      if (
-        env.ASSETS?.fetch
-      ) {
-        return env.ASSETS.fetch(
-          request
-        );
+      if (env.ASSETS?.fetch) {
+        return env.ASSETS.fetch(request);
       }
 
       return json({
-        error:
-          "找不到頁面"
+        error: "找不到頁面"
       }, 404, cors);
 
     } catch (error) {
-      console.error(
-        "Worker error:",
-        error
-      );
+      console.error("Worker error:", error);
 
       return json({
-        error:
-          "伺服器發生錯誤",
-        detail:
-          String(
-            error?.message ||
-            error
-          )
+        error: "伺服器發生錯誤",
+        detail: String(error?.message || error)
       }, 500, cors);
     }
   }
