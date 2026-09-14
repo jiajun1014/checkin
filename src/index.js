@@ -47,13 +47,24 @@ const CHECKIN_WINDOWS = [
   { start: "17:00", end: "18:00" },
   { start: "22:00", end: "23:00" }
 ];
-
-// 簽到地點：家樂福
+// // 簽到地點：國立中興大學
+// const CHECKIN_AREA = {
+//   latitude: 24.123806,
+//   longitude: 120.675194,
+//   radiusMeters: 200
+// };
+// //輔大
 const CHECKIN_AREA = {
-  latitude: 24.996680,
-  longitude: 121.421019,
+  latitude: 25.033649,
+  longitude: 121.433255,
   radiusMeters: 200
 };
+// 簽到地點：家樂福
+// const CHECKIN_AREA = {
+//   latitude: 24.996680,
+//   longitude: 121.421019,
+//   radiusMeters: 200
+// };
 
 function distanceMeters(lat1, lon1, lat2, lon2) {
   const R = 6371000;
