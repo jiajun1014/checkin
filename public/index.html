@@ -560,8 +560,6 @@
 <div class="card">
   <header>
     <h1>每日簽到</h1>
-    <p class="subtitle">為今天蓋下屬於自己的印記</p>
-    <p class="admin-link">美女請假需要審核</p>
   </header>
 
   <div class="stamp-zone">
@@ -582,7 +580,7 @@
       </svg>
     </button>
 
-    <p class="stamp-hint" id="stampHint">點一下，完成今日簽到</p>
+    <p class="stamp-hint" id="stampHint">請美女點一下，完成今日簽到</p>
     <p class="status-note" id="statusNote" style="display:none;"></p>
 
     <div class="leave-row">
@@ -638,7 +636,7 @@
   <div class="reveal-card">
     <div class="ch-big">茶</div>
     <h2>集滿 3 個月！</h2>
-    <p>累積簽到已滿 90 天，可換一頓茶六摟～</p>
+    <p>累積簽到已滿，恭喜獲得一頓茶六</p>
     <button id="revealClose">太棒了</button>
   </div>
 </div>
@@ -1171,7 +1169,7 @@ async function submitMood(){
     document.getElementById('moodReason').value.trim();
 
   if(selectedMood < 3 && !reason){
-    alert('低於 3 分時請填寫原因');
+    alert('妳怎麼了');
     return;
   }
 
@@ -1375,14 +1373,7 @@ async function checkPendingStatus(){
 
 async function resetAll(){
   const ok = confirm(
-    '確定要重新開始所有紀錄嗎？\n\n' +
-    '這會清除：\n' +
-    '・簽到紀錄\n' +
-    '・請假紀錄\n' +
-    '・心情紀錄\n' +
-    '・國定假日\n' +
-    '・累積簽到進度\n\n' +
-    '清除後會從 0 重新開始。'
+    '確定要重新開始所有紀錄嗎？
   );
 
   if(!ok){
