@@ -563,6 +563,33 @@ export default {
           requests: result.results || []
         }, 200, cors);
       }
+ // =====================================================
+      // Admin：查看每日心情
+      // =====================================================
+      if (
+        url.pathname === "/api/admin/moods" &&
+        request.method === "GET"
+      ) {
+        if (!isAdmin(request, env)) {
+          return json({
+            error: "管理者密碼錯誤"
+          }, 401, cors);
+        }
+
+        const result = await env.DB.prepare(`
+          SELECT
+            date,
+            score,
+            reason,
+            submitted_at AS submittedAt
+          FROM daily_moods
+          ORDER BY date DESC, submitted_at DESC
+        `).all();
+
+        return json({
+          moods: result.results || []
+        }, 200, cors);
+      }
 
       // =====================================================
       // Admin：核准 / 拒絕請假
