@@ -1006,7 +1006,7 @@ export default {
       // 管理員：刪除國定假日
       // =====================================================
 
-      if (
+           if (
         url.pathname ===
           "/api/admin/holidays" &&
         request.method === "DELETE"
@@ -1050,6 +1050,45 @@ export default {
         return json({
           ok: true,
           date
+        }, 200, cors);
+      }
+
+      // =====================================================
+      // 重新開始全部紀錄
+      // =====================================================
+
+      if (
+        url.pathname === "/api/reset" &&
+        request.method === "POST"
+      ) {
+        const token =
+          request.headers.get("X-User-Token");
+
+        if (!token) {
+          return json({
+            error: "缺少使用者識別"
+          }, 401, cors);
+        }
+
+        await env.DB.prepare(`
+          DELETE FROM daily_moods
+        `).run();
+
+        await env.DB.prepare(`
+          DELETE FROM checkins
+        `).run();
+
+        await env.DB.prepare(`
+          DELETE FROM leave_requests
+        `).run();
+
+        await env.DB.prepare(`
+          DELETE FROM holidays
+        `).run();
+
+        return json({
+          ok: true,
+          message: "所有紀錄已重新開始"
         }, 200, cors);
       }
 
