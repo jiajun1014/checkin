@@ -306,85 +306,157 @@ let state = {
 let todayStatus = null;
 
 function getUserToken(){
-  let token = localStorage.getItem(USER_TOKEN_KEY);
+  let token =
+    localStorage.getItem(
+      USER_TOKEN_KEY
+    );
+
   if(!token){
-    token = crypto.randomUUID ? crypto.randomUUID() :
-      Date.now().toString(36) + Math.random().toString(36).slice(2);
-    localStorage.setItem(USER_TOKEN_KEY, token);
+    token =
+      crypto.randomUUID
+        ? crypto.randomUUID()
+        : Date.now().toString(36) +
+          Math.random()
+            .toString(36)
+            .slice(2);
+
+    localStorage.setItem(
+      USER_TOKEN_KEY,
+      token
+    );
   }
+
   return token;
 }
 
-const userToken = getUserToken();
+const userToken =
+  getUserToken();
 
-function todayStr(d = new Date()){
-  return d.toLocaleDateString('sv-SE');
+function todayStr(
+  d = new Date()
+){
+  return d.toLocaleDateString(
+    'sv-SE'
+  );
 }
 
-function addDays(dateStr, delta){
-  const d = new Date(dateStr + 'T00:00:00');
-  d.setDate(d.getDate() + delta);
+function addDays(
+  dateStr,
+  delta
+){
+  const d =
+    new Date(
+      dateStr +
+      'T00:00:00'
+    );
+
+  d.setDate(
+    d.getDate() +
+    delta
+  );
+
   return todayStr(d);
 }
 
 function escapeHtml(str){
-  const div = document.createElement('div');
-  div.textContent = str || '';
+  const div =
+    document.createElement(
+      'div'
+    );
+
+  div.textContent =
+    str || '';
+
   return div.innerHTML;
 }
 
-async function api(path, options = {}){
-  const headers = new Headers(options.headers || {});
-  headers.set('Content-Type', 'application/json');
-  headers.set('X-User-Token', userToken);
+async function api(
+  path,
+  options = {}
+){
+  const headers =
+    new Headers(
+      options.headers || {}
+    );
 
-  const res = await fetch(path, {
-    ...options,
-    headers,
-    cache: 'no-store'
-  });
+  headers.set(
+    'Content-Type',
+    'application/json'
+  );
 
-  const data = await res.json().catch(() => ({}));
+  headers.set(
+    'X-User-Token',
+    userToken
+  );
+
+  const res =
+    await fetch(
+      path,
+      {
+        ...options,
+        headers,
+        cache: 'no-store'
+      }
+    );
+
+  const data =
+    await res.json()
+      .catch(() => ({}));
 
   if(!res.ok){
-    throw new Error(data.error || '伺服器錯誤');
+    throw new Error(
+      data.error ||
+      '伺服器錯誤'
+    );
   }
 
   return data;
 }
 
 function attendanceMap(){
-  const map = new Map();
+  const map =
+    new Map();
 
-  for(const record of state.attendanceRecords || []){
-    map.set(record.date, record.source);
+  for(
+    const record of
+    state.attendanceRecords ||
+    []
+  ){
+    map.set(
+      record.date,
+      record.source
+    );
   }
 
   return map;
 }
 
-function approvedLeaveSet(){
-  return new Set(
-    (state.approvedLeaves || []).map(l => l.date)
-  );
-}
-
-function holidaySet(){
-  return new Set(state.holidays || []);
-}
-
 async function saveState(){
-  localStorage.setItem(STORAGE_KEY, JSON.stringify({
-    redeemedCount: state.redeemedCount
-  }));
+  localStorage.setItem(
+    STORAGE_KEY,
+    JSON.stringify({
+      redeemedCount:
+        state.redeemedCount
+    })
+  );
 }
 
 async function loadLocalState(){
   try{
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw =
+      localStorage.getItem(
+        STORAGE_KEY
+      );
+
     if(raw){
-      const parsed = JSON.parse(raw);
-      state.redeemedCount = Number(parsed.redeemedCount || 0);
+      const parsed =
+        JSON.parse(raw);
+
+      state.redeemedCount =
+        Number(
+          parsed.redeemedCount ||
+          0
+        );
     }
   }catch(e){
     console.error(e);
@@ -392,277 +464,631 @@ async function loadLocalState(){
 }
 
 async function syncStats(){
-  const data = await api('/api/stats');
+  const data =
+    await api('/api/stats');
 
-  state.totalCount = Number(data.total || 0);
-  state.attendanceRecords = Array.isArray(data.records)
-    ? data.records
-    : [];
+  state.totalCount =
+    Number(
+      data.total || 0
+    );
 
-  state.dates = state.attendanceRecords
-    .filter(r => r.source === 'checkin')
-    .map(r => r.date);
+  state.attendanceRecords =
+    Array.isArray(
+      data.records
+    )
+      ? data.records
+      : [];
 
-  state.holidays = state.attendanceRecords
-    .filter(r => r.source === 'holiday')
-    .map(r => r.date);
+  state.dates =
+    state.attendanceRecords
+      .filter(
+        r =>
+          r.source ===
+          'checkin'
+      )
+      .map(
+        r => r.date
+      );
+
+  state.holidays =
+    state.attendanceRecords
+      .filter(
+        r =>
+          r.source ===
+          'holiday'
+      )
+      .map(
+        r => r.date
+      );
 }
 
 async function syncStatus(){
   try{
-    todayStatus = await api('/api/status');
+    todayStatus =
+      await api(
+        '/api/status'
+      );
   }catch(e){
-    todayStatus = null;
+    todayStatus =
+      null;
   }
 }
 
 async function getRequests(){
-  const data = await api('/api/employee/requests');
-  return data.requests || [];
+  const data =
+    await api(
+      '/api/employee/requests'
+    );
+
+  return (
+    data.requests ||
+    []
+  );
 }
 
 async function syncRequests(){
-  const list = await getRequests();
+  const list =
+    await getRequests();
 
-  state.approvedLeaves = list
-    .filter(r => r.status === 'approved')
-    .map(r => ({
-      id: r.id,
-      date: r.date,
-      reason: r.reason || ''
-    }));
+  state.approvedLeaves =
+    list
+      .filter(
+        r =>
+          r.status ===
+          'approved'
+      )
+      .map(
+        r => ({
+          id: r.id,
+          date: r.date,
+          reason:
+            r.reason || ''
+        })
+      );
 
-  const today = todayStr();
+  const today =
+    todayStr();
 
-  const pendingToday = list.find(
-    r => r.status === 'pending' && r.date === today
-  );
+  const pendingToday =
+    list.find(
+      r =>
+        r.status ===
+          'pending' &&
+        r.date ===
+          today
+    );
 
-  state.pendingLeave = pendingToday
-    ? {
-        id: pendingToday.id,
-        date: pendingToday.date,
-        reason: pendingToday.reason || ''
-      }
-    : null;
-
-  // 若今天的請假被拒絕，允許再次正常操作。
-  if(!state.pendingLeave && state.lastDate === today){
-    const approvedToday = state.approvedLeaves.some(l => l.date === today);
-    const attendedToday = attendanceMap().has(today);
-
-    if(!approvedToday && !attendedToday){
-      state.lastDate = null;
-    }
-  }
+  state.pendingLeave =
+    pendingToday
+      ? {
+          id:
+            pendingToday.id,
+          date:
+            pendingToday.date,
+          reason:
+            pendingToday.reason ||
+            ''
+        }
+      : null;
 }
 
 function computeStreak(){
-  const attended = new Set(
-    (state.attendanceRecords || []).map(r => r.date)
-  );
+  const attended =
+    new Set(
+      (
+        state.attendanceRecords ||
+        []
+      ).map(
+        r => r.date
+      )
+    );
 
-  const today = todayStr();
-  let cursor = attended.has(today)
-    ? today
-    : addDays(today, -1);
+  const today =
+    todayStr();
 
-  if(!attended.has(cursor)){
+  let cursor =
+    attended.has(today)
+      ? today
+      : addDays(
+          today,
+          -1
+        );
+
+  if(
+    !attended.has(
+      cursor
+    )
+  ){
     return 0;
   }
 
   let count = 0;
 
-  while(attended.has(cursor)){
+  while(
+    attended.has(
+      cursor
+    )
+  ){
     count++;
-    cursor = addDays(cursor, -1);
+
+    cursor =
+      addDays(
+        cursor,
+        -1
+      );
   }
 
   return count;
 }
 
 function render(){
-  const today = todayStr();
-  const records = attendanceMap();
-  const todaySource = records.get(today);
+  const today =
+    todayStr();
 
-  const checkedToday = todaySource === 'checkin';
-  const approvedLeaveToday = todaySource === 'leave';
-  const holidayToday = todaySource === 'holiday' ||
-    Boolean(todayStatus && todayStatus.isHoliday);
+  const records =
+    attendanceMap();
 
-  const pendingToday = !!(
-    state.pendingLeave &&
-    state.pendingLeave.date === today
-  );
+  const todaySource =
+    records.get(today);
+
+  const checkedToday =
+    todaySource ===
+    'checkin';
+
+  const approvedLeaveToday =
+    todaySource ===
+    'leave';
+
+  const holidayToday =
+    todaySource ===
+      'holiday' ||
+    Boolean(
+      todayStatus &&
+      todayStatus.isHoliday
+    );
+
+  const pendingToday =
+    Boolean(
+      state.pendingLeave &&
+      state.pendingLeave.date ===
+        today
+    );
 
   const successfulToday =
     checkedToday ||
     approvedLeaveToday ||
     holidayToday;
 
-  const stampBtn = document.getElementById('stampBtn');
-  const leaveLink = document.getElementById('leaveLink');
-  const hint = document.getElementById('stampHint');
-  const statusNote = document.getElementById('statusNote');
-  const group = document.getElementById('stampGroup');
-  const stampChar = document.getElementById('stampChar');
+  const stampBtn =
+    document.getElementById(
+      'stampBtn'
+    );
 
-  group.classList.toggle('is-stamped', checkedToday || holidayToday);
-  group.classList.toggle('is-leave', approvedLeaveToday);
-  group.classList.toggle('is-leave-pending', pendingToday);
+  const leaveLink =
+    document.getElementById(
+      'leaveLink'
+    );
 
-  if(holidayToday){
-    stampChar.textContent = '休';
-  }else if(approvedLeaveToday || pendingToday){
-    stampChar.textContent = '假';
-  }else{
-    stampChar.textContent = '簽';
-  }
+  const hint =
+    document.getElementById(
+      'stampHint'
+    );
 
-  stampBtn.disabled = successfulToday || pendingToday;
-  leaveLink.disabled = successfulToday || pendingToday;
+  const statusNote =
+    document.getElementById(
+      'statusNote'
+    );
 
-  if(holidayToday){
-    hint.textContent = '今天是國定假日，已列入成功簽到';
-    statusNote.textContent = '國定假日會自動計入累積簽到，不需要另外操作';
-    statusNote.style.display = 'block';
-  }else if(checkedToday){
-    hint.textContent = '今天已成功簽到';
-    statusNote.style.display = 'none';
-  }else if(pendingToday){
-    hint.textContent = '請假申請審核中';
-    statusNote.textContent = '原因：' + (state.pendingLeave.reason || '(未填寫)');
-    statusNote.style.display = 'block';
-  }else if(approvedLeaveToday){
-    hint.textContent = '今天請假已核准，已列入成功簽到';
-    const rec = state.approvedLeaves.find(l => l.date === today);
-    statusNote.textContent = '原因：' + (rec ? rec.reason : '');
-    statusNote.style.display = 'block';
-  }else{
-    hint.textContent = todayStatus && !todayStatus.isAllowedTime
-      ? '目前不在開放簽到時間'
-      : '點一下，完成今日簽到';
+  const group =
+    document.getElementById(
+      'stampGroup'
+    );
 
-    if(todayStatus && todayStatus.scheduleText){
-      statusNote.textContent = '簽到時間：' + todayStatus.scheduleText;
-      statusNote.style.display = 'block';
-    }else{
-      statusNote.style.display = 'none';
-    }
-  }
+  const stampChar =
+    document.getElementById(
+      'stampChar'
+    );
 
-  document.getElementById('streakNum').textContent = computeStreak();
-  document.getElementById('totalNum').textContent = state.totalCount;
-  document.getElementById('redeemNum').textContent = state.redeemedCount;
-
-  const dotRow = document.getElementById('dotRow');
-  const dotDetail = document.getElementById('dotDetail');
-
-  dotDetail.textContent = '';
-  dotRow.innerHTML = '';
-
-  for(let i = 13; i >= 0; i--){
-    const ds = addDays(today, -i);
-    const dot = document.createElement('div');
-    const source = records.get(ds);
-
-    let cls = 'dot';
-    let info = null;
-
-    if(source === 'checkin'){
-      cls += ' filled';
-      info = ds + ' · 已成功簽到';
-    }else if(source === 'leave'){
-      cls += ' leave';
-      const rec = state.approvedLeaves.find(l => l.date === ds);
-      info = ds + ' · 請假已核准，列入成功簽到' +
-        (rec && rec.reason ? '（' + rec.reason + '）' : '');
-    }else if(source === 'holiday'){
-      cls += ' holiday';
-      info = ds + ' · 國定假日，列入成功簽到';
-    }else if(
-      state.pendingLeave &&
-      state.pendingLeave.date === ds
-    ){
-      cls += ' leave-pending';
-      info = ds + ' · 請假審核中';
-    }
-
-    if(ds === today){
-      cls += ' today';
-    }
-
-    dot.className = cls;
-
-    if(info){
-      dot.title = info;
-      dot.style.cursor = 'pointer';
-      dot.addEventListener('click', () => {
-        dotDetail.textContent = info;
-      });
-    }
-
-    dotRow.appendChild(dot);
-  }
-
-  const progressInCycle = state.totalCount % GOAL_DAYS;
-  const pct = Math.round(
-    (progressInCycle / GOAL_DAYS) * 100
+  group.classList.toggle(
+    'is-stamped',
+    checkedToday ||
+    holidayToday
   );
 
-  document.getElementById('progressFill').style.width = pct + '%';
-  document.getElementById('progressText').textContent =
+  group.classList.toggle(
+    'is-leave',
+    approvedLeaveToday
+  );
+
+  group.classList.toggle(
+    'is-leave-pending',
+    pendingToday
+  );
+
+  if(holidayToday){
+    stampChar.textContent =
+      '休';
+
+  }else if(
+    approvedLeaveToday ||
+    pendingToday
+  ){
+    stampChar.textContent =
+      '假';
+
+  }else{
+    stampChar.textContent =
+      '簽';
+  }
+
+  stampBtn.disabled =
+    successfulToday ||
+    pendingToday;
+
+  leaveLink.disabled =
+    successfulToday ||
+    pendingToday;
+
+  if(holidayToday){
+
+    hint.textContent =
+      '今天是國定假日，已列入成功簽到';
+
+    statusNote.textContent =
+      '國定假日會自動計入累積簽到';
+
+    statusNote.style.display =
+      'block';
+
+  }else if(
+    checkedToday
+  ){
+
+    hint.textContent =
+      '今天已成功簽到';
+
+    statusNote.style.display =
+      'none';
+
+  }else if(
+    pendingToday
+  ){
+
+    hint.textContent =
+      '請假申請審核中';
+
+    statusNote.textContent =
+      '原因：' +
+      (
+        state.pendingLeave.reason ||
+        '(未填寫)'
+      );
+
+    statusNote.style.display =
+      'block';
+
+  }else if(
+    approvedLeaveToday
+  ){
+
+    hint.textContent =
+      '今天請假已核准，已列入成功簽到';
+
+    const rec =
+      state.approvedLeaves
+        .find(
+          l =>
+            l.date ===
+            today
+        );
+
+    statusNote.textContent =
+      '原因：' +
+      (
+        rec
+          ? rec.reason
+          : ''
+      );
+
+    statusNote.style.display =
+      'block';
+
+  }else{
+
+    if(
+      todayStatus &&
+      !todayStatus.isAllowedTime
+    ){
+      hint.textContent =
+        '目前不在開放簽到時間';
+
+    }else{
+      hint.textContent =
+        '點一下，完成今日簽到';
+    }
+
+    if(
+      todayStatus &&
+      todayStatus.scheduleText
+    ){
+      statusNote.textContent =
+        '簽到時間：' +
+        todayStatus.scheduleText;
+
+      statusNote.style.display =
+        'block';
+
+    }else{
+      statusNote.style.display =
+        'none';
+    }
+  }
+
+  document.getElementById(
+    'streakNum'
+  ).textContent =
+    computeStreak();
+
+  document.getElementById(
+    'totalNum'
+  ).textContent =
+    state.totalCount;
+
+  document.getElementById(
+    'redeemNum'
+  ).textContent =
+    state.redeemedCount;
+
+  const dotRow =
+    document.getElementById(
+      'dotRow'
+    );
+
+  const dotDetail =
+    document.getElementById(
+      'dotDetail'
+    );
+
+  dotDetail.textContent =
+    '';
+
+  dotRow.innerHTML =
+    '';
+
+  for(
+    let i = 13;
+    i >= 0;
+    i--
+  ){
+    const ds =
+      addDays(
+        today,
+        -i
+      );
+
+    const dot =
+      document.createElement(
+        'div'
+      );
+
+    const source =
+      records.get(ds);
+
+    let cls =
+      'dot';
+
+    let info =
+      null;
+
+    if(
+      source ===
+      'checkin'
+    ){
+      cls +=
+        ' filled';
+
+      info =
+        ds +
+        ' · 已成功簽到';
+
+    }else if(
+      source ===
+      'leave'
+    ){
+      cls +=
+        ' leave';
+
+      const rec =
+        state.approvedLeaves
+          .find(
+            l =>
+              l.date ===
+              ds
+          );
+
+      info =
+        ds +
+        ' · 請假已核准，列入成功簽到' +
+        (
+          rec &&
+          rec.reason
+            ? '（' +
+              rec.reason +
+              '）'
+            : ''
+        );
+
+    }else if(
+      source ===
+      'holiday'
+    ){
+      cls +=
+        ' filled';
+
+      info =
+        ds +
+        ' · 國定假日，列入成功簽到';
+
+    }else if(
+      state.pendingLeave &&
+      state.pendingLeave.date ===
+        ds
+    ){
+      cls +=
+        ' leave-pending';
+
+      info =
+        ds +
+        ' · 請假審核中';
+    }
+
+    if(
+      ds === today
+    ){
+      cls +=
+        ' today';
+    }
+
+    dot.className =
+      cls;
+
+    if(info){
+      dot.title =
+        info;
+
+      dot.style.cursor =
+        'pointer';
+
+      dot.addEventListener(
+        'click',
+        () => {
+          dotDetail.textContent =
+            info;
+        }
+      );
+    }
+
+    dotRow.appendChild(
+      dot
+    );
+  }
+
+  const progressInCycle =
+    state.totalCount %
+    GOAL_DAYS;
+
+  const pct =
+    Math.round(
+      (
+        progressInCycle /
+        GOAL_DAYS
+      ) * 100
+    );
+
+  document.getElementById(
+    'progressFill'
+  ).style.width =
+    pct + '%';
+
+  document.getElementById(
+    'progressText'
+  ).textContent =
     `已集 ${progressInCycle} / ${GOAL_DAYS} 天`;
 
-  const logList = document.getElementById('leaveLogList');
-  logList.innerHTML = '';
+  const logList =
+    document.getElementById(
+      'leaveLogList'
+    );
+
+  logList.innerHTML =
+    '';
 
   const historyItems = [
-    ...state.approvedLeaves.map(l => ({
-      date: l.date,
-      reason: l.reason,
-      status: 'approved'
-    })),
-    ...(state.pendingLeave
-      ? [{
-          date: state.pendingLeave.date,
-          reason: state.pendingLeave.reason,
-          status: 'pending'
-        }]
-      : [])
-  ].sort((a, b) => b.date.localeCompare(a.date));
+    ...state.approvedLeaves
+      .map(
+        l => ({
+          date:
+            l.date,
+          reason:
+            l.reason,
+          status:
+            'approved'
+        })
+      ),
 
-  if(historyItems.length === 0){
+    ...(
+      state.pendingLeave
+        ? [{
+            date:
+              state.pendingLeave.date,
+            reason:
+              state.pendingLeave.reason,
+            status:
+              'pending'
+          }]
+        : []
+    )
+  ].sort(
+    (a, b) =>
+      b.date.localeCompare(
+        a.date
+      )
+  );
+
+  if(
+    historyItems.length ===
+    0
+  ){
     logList.innerHTML =
       '<div class="leave-log-empty">尚無請假紀錄</div>';
+
   }else{
-    historyItems.slice(0, 20).forEach(l => {
-      const item = document.createElement('div');
-      item.className = 'leave-log-item';
 
-      const tagText =
-        l.status === 'pending'
-          ? '審核中'
-          : '已核准・已簽到';
+    historyItems
+      .slice(0, 20)
+      .forEach(
+        l => {
 
-      item.innerHTML =
-        `<span class="ld">${escapeHtml(l.date)}</span>` +
-        `${l.reason ? escapeHtml(l.reason) : '(未填寫原因)'}` +
-        `<span class="tag ${l.status === 'pending' ? 'pending' : 'approved'}">${tagText}</span>`;
+          const item =
+            document.createElement(
+              'div'
+            );
 
-      logList.appendChild(item);
-    });
+          item.className =
+            'leave-log-item';
+
+          const tagText =
+            l.status ===
+              'pending'
+              ? '審核中'
+              : '已核准・已簽到';
+
+          item.innerHTML =
+            `<span class="ld">${escapeHtml(l.date)}</span>` +
+            `${l.reason ? escapeHtml(l.reason) : '(未填寫原因)'}` +
+            `<span class="tag ${l.status === 'pending' ? 'pending' : 'approved'}">${tagText}</span>`;
+
+          logList.appendChild(
+            item
+          );
+        }
+      );
   }
 }
 
-async function refreshAll({
-  showApprovedMood = false
-} = {}){
+async function refreshAll(
+  {
+    showApprovedMood =
+      false
+  } = {}
+){
   const beforeApprovedToday =
-    state.approvedLeaves.some(
-      l => l.date === todayStr()
-    );
+    state.approvedLeaves
+      .some(
+        l =>
+          l.date ===
+          todayStr()
+      );
 
   await Promise.all([
     syncStats(),
@@ -670,15 +1096,18 @@ async function refreshAll({
     syncRequests()
   ]);
 
-  // syncRequests 後，統計再拉一次，確保剛核准的請假立刻反映。
+  // 再拉一次，確保剛核准的請假馬上加進累積
   await syncStats();
 
   render();
 
   const approvedToday =
-    state.approvedLeaves.some(
-      l => l.date === todayStr()
-    );
+    state.approvedLeaves
+      .some(
+        l =>
+          l.date ===
+          todayStr()
+      );
 
   if(
     showApprovedMood &&
@@ -694,315 +1123,572 @@ async function loadState(){
 
   try{
     await refreshAll();
+
   }catch(e){
-    document.getElementById('errorMsg').textContent =
-      '載入紀錄失敗：' + e.message;
+
+    document.getElementById(
+      'errorMsg'
+    ).textContent =
+      '載入紀錄失敗：' +
+      e.message;
+
     render();
   }
 }
 
-let selectedMood = 0;
+let selectedMood =
+  0;
 
 function showMood(){
-  selectedMood = 0;
+  selectedMood =
+    0;
 
-  const box = document.getElementById('moodButtons');
-  box.innerHTML = '';
+  const box =
+    document.getElementById(
+      'moodButtons'
+    );
 
-  for(let i = 1; i <= 5; i++){
-    const b = document.createElement('button');
-    b.textContent = i;
+  box.innerHTML =
+    '';
 
-    b.onclick = () => {
-      selectedMood = i;
-
-      [...box.children].forEach(
-        x => x.classList.remove('selected')
+  for(
+    let i = 1;
+    i <= 5;
+    i++
+  ){
+    const b =
+      document.createElement(
+        'button'
       );
 
-      b.classList.add('selected');
+    b.textContent =
+      i;
 
-      document.getElementById('moodReason').style.display =
-        i < 3 ? 'block' : 'none';
-    };
+    b.onclick =
+      () => {
 
-    box.appendChild(b);
+        selectedMood =
+          i;
+
+        [...box.children]
+          .forEach(
+            x =>
+              x.classList.remove(
+                'selected'
+              )
+          );
+
+        b.classList.add(
+          'selected'
+        );
+
+        document.getElementById(
+          'moodReason'
+        ).style.display =
+          i < 3
+            ? 'block'
+            : 'none';
+      };
+
+    box.appendChild(
+      b
+    );
   }
 
-  document.getElementById('moodReason').value = '';
-  document.getElementById('moodReason').style.display = 'none';
-  document.getElementById('moodOverlay').classList.add('show');
+  document.getElementById(
+    'moodReason'
+  ).value =
+    '';
+
+  document.getElementById(
+    'moodReason'
+  ).style.display =
+    'none';
+
+  document.getElementById(
+    'moodOverlay'
+  ).classList.add(
+    'show'
+  );
 }
 
 async function submitMood(){
   if(!selectedMood){
-    alert('請選擇 1～5 分');
+    alert(
+      '請選擇 1～5 分'
+    );
     return;
   }
 
   const reason =
-    document.getElementById('moodReason').value.trim();
+    document.getElementById(
+      'moodReason'
+    ).value.trim();
 
-  if(selectedMood < 3 && !reason){
-    alert('低於 3 分時請填寫原因');
+  if(
+    selectedMood < 3 &&
+    !reason
+  ){
+    alert(
+      '低於 3 分時請填寫原因'
+    );
     return;
   }
 
   try{
-    await api('/api/mood', {
-      method: 'POST',
-      body: JSON.stringify({
-        score: selectedMood,
-        reason
-      })
-    });
 
-    document.getElementById('moodOverlay')
-      .classList.remove('show');
+    await api(
+      '/api/mood',
+      {
+        method: 'POST',
+        body:
+          JSON.stringify({
+            score:
+              selectedMood,
+            reason
+          })
+      }
+    );
+
+    document.getElementById(
+      'moodOverlay'
+    ).classList.remove(
+      'show'
+    );
 
   }catch(e){
-    alert('心情送出失敗：' + e.message);
+
+    alert(
+      '心情送出失敗：' +
+      e.message
+    );
   }
 }
 
 async function checkIn(){
-  const errorMsg = document.getElementById('errorMsg');
-  const hint = document.getElementById('stampHint');
+  const errorMsg =
+    document.getElementById(
+      'errorMsg'
+    );
 
-  errorMsg.textContent = '';
+  const hint =
+    document.getElementById(
+      'stampHint'
+    );
 
-  if(todayStatus && todayStatus.isHoliday){
+  errorMsg.textContent =
+    '';
+
+  if(
+    todayStatus &&
+    todayStatus.isHoliday
+  ){
     await refreshAll();
     return;
   }
 
-  if(!navigator.geolocation){
-    errorMsg.textContent = '這個裝置不支援定位功能。';
+  if(
+    !navigator.geolocation
+  ){
+    errorMsg.textContent =
+      '這個裝置不支援定位功能。';
+
     return;
   }
 
-  hint.textContent = '正在確認你的位置...';
+  hint.textContent =
+    '正在確認你的位置...';
 
-  navigator.geolocation.getCurrentPosition(
-    async position => {
-      const latitude = position.coords.latitude;
-      const longitude = position.coords.longitude;
+  navigator.geolocation
+    .getCurrentPosition(
 
-      try{
-        const previousTotal = state.totalCount;
+      async position => {
 
-        await api('/api/checkin', {
-          method: 'POST',
-          body: JSON.stringify({
-            latitude,
-            longitude
-          })
-        });
+        const latitude =
+          position.coords.latitude;
 
-        document.getElementById('stampGroup')
-          .classList.add('impact');
+        const longitude =
+          position.coords.longitude;
 
-        setTimeout(() => {
-          document.getElementById('stampGroup')
-            .classList.remove('impact');
-        }, 450);
+        try{
 
-        await refreshAll();
+          const previousTotal =
+            state.totalCount;
 
-        const nextTotal = state.totalCount;
-        const prevCycles =
-          Math.floor(previousTotal / GOAL_DAYS);
-        const nextCycles =
-          Math.floor(nextTotal / GOAL_DAYS);
+          await api(
+            '/api/checkin',
+            {
+              method:
+                'POST',
 
-        if(nextCycles > prevCycles){
-          state.redeemedCount +=
-            (nextCycles - prevCycles);
+              body:
+                JSON.stringify({
+                  latitude,
+                  longitude
+                })
+            }
+          );
 
-          await saveState();
-          render();
+          document.getElementById(
+            'stampGroup'
+          ).classList.add(
+            'impact'
+          );
 
-          document.getElementById('overlay')
-            .classList.add('show');
+          setTimeout(
+            () => {
+              document.getElementById(
+                'stampGroup'
+              ).classList.remove(
+                'impact'
+              );
+            },
+            450
+          );
+
+          await refreshAll();
+
+          const nextTotal =
+            state.totalCount;
+
+          const prevCycles =
+            Math.floor(
+              previousTotal /
+              GOAL_DAYS
+            );
+
+          const nextCycles =
+            Math.floor(
+              nextTotal /
+              GOAL_DAYS
+            );
+
+          if(
+            nextCycles >
+            prevCycles
+          ){
+
+            state.redeemedCount +=
+              (
+                nextCycles -
+                prevCycles
+              );
+
+            await saveState();
+
+            render();
+
+            document.getElementById(
+              'overlay'
+            ).classList.add(
+              'show'
+            );
+          }
+
+          showMood();
+
+        }catch(e){
+
+          errorMsg.textContent =
+            e.message;
+
+          try{
+            await refreshAll();
+          }catch(_){}
+        }
+      },
+
+      error => {
+
+        if(
+          error.code === 1
+        ){
+          errorMsg.textContent =
+            '請允許瀏覽器取得你的位置，才能完成簽到。';
+
+        }else if(
+          error.code === 2
+        ){
+          errorMsg.textContent =
+            '目前無法取得你的位置，請確認 GPS 已開啟。';
+
+        }else if(
+          error.code === 3
+        ){
+          errorMsg.textContent =
+            '取得位置逾時，請再試一次。';
+
+        }else{
+          errorMsg.textContent =
+            '無法取得目前位置。';
         }
 
-        showMood();
+        render();
+      },
 
-      }catch(e){
-        errorMsg.textContent = e.message;
-
-        // 若後端說今天已經成功，重新同步畫面。
-        try{
-          await refreshAll();
-        }catch(_){}
+      {
+        enableHighAccuracy:
+          true,
+        timeout:
+          10000,
+        maximumAge:
+          0
       }
-    },
-
-    error => {
-      if(error.code === 1){
-        errorMsg.textContent =
-          '請允許瀏覽器取得你的位置，才能完成簽到。';
-      }else if(error.code === 2){
-        errorMsg.textContent =
-          '目前無法取得你的位置，請確認 GPS 已開啟。';
-      }else if(error.code === 3){
-        errorMsg.textContent =
-          '取得位置逾時，請再試一次。';
-      }else{
-        errorMsg.textContent =
-          '無法取得目前位置。';
-      }
-
-      render();
-    },
-
-    {
-      enableHighAccuracy: true,
-      timeout: 10000,
-      maximumAge: 0
-    }
-  );
+    );
 }
 
 function openLeaveModal(){
-  const today = todayStr();
-  const records = attendanceMap();
+  const today =
+    todayStr();
 
-  if(records.has(today)){
+  const records =
+    attendanceMap();
+
+  if(
+    records.has(today)
+  ){
     return;
   }
 
   if(
     state.pendingLeave &&
-    state.pendingLeave.date === today
+    state.pendingLeave.date ===
+      today
   ){
     return;
   }
 
-  document.getElementById('leaveReasonInput').value = '';
-  document.getElementById('leaveOverlay').classList.add('show');
+  document.getElementById(
+    'leaveReasonInput'
+  ).value =
+    '';
+
+  document.getElementById(
+    'leaveOverlay'
+  ).classList.add(
+    'show'
+  );
 }
 
 function closeLeaveModal(){
-  document.getElementById('leaveOverlay')
-    .classList.remove('show');
+  document.getElementById(
+    'leaveOverlay'
+  ).classList.remove(
+    'show'
+  );
 }
 
 async function submitLeave(){
-  const today = todayStr();
+  const today =
+    todayStr();
 
-  if(attendanceMap().has(today)){
+  if(
+    attendanceMap()
+      .has(today)
+  ){
     closeLeaveModal();
     return;
   }
 
   const reason =
-    document.getElementById('leaveReasonInput').value.trim();
+    document.getElementById(
+      'leaveReasonInput'
+    ).value.trim();
 
   if(!reason){
-    alert('請填寫請假原因');
+    alert(
+      '請填寫請假原因'
+    );
     return;
   }
 
-  const id = crypto.randomUUID
-    ? crypto.randomUUID()
-    : Date.now().toString(36) +
-      Math.random().toString(36).slice(2, 7);
+  const id =
+    crypto.randomUUID
+      ? crypto.randomUUID()
+      : Date.now()
+          .toString(36) +
+        Math.random()
+          .toString(36)
+          .slice(2, 7);
 
-  document.getElementById('errorMsg').textContent = '';
+  document.getElementById(
+    'errorMsg'
+  ).textContent =
+    '';
 
   try{
-    await api('/api/requests', {
-      method: 'POST',
-      body: JSON.stringify({
-        id,
-        date: today,
-        reason,
-        requesterToken: userToken
-      })
-    });
+
+    await api(
+      '/api/requests',
+      {
+        method:
+          'POST',
+
+        body:
+          JSON.stringify({
+            id,
+            date:
+              today,
+            reason,
+            requesterToken:
+              userToken
+          })
+      }
+    );
 
     closeLeaveModal();
+
     await refreshAll();
 
   }catch(e){
-    document.getElementById('errorMsg').textContent =
-      '送出失敗：' + e.message;
+
+    document.getElementById(
+      'errorMsg'
+    ).textContent =
+      '送出失敗：' +
+      e.message;
 
     closeLeaveModal();
   }
 }
 
 async function checkPendingStatus(){
-  document.getElementById('errorMsg').textContent = '';
+  document.getElementById(
+    'errorMsg'
+  ).textContent =
+    '';
 
   try{
+
     await refreshAll({
-      showApprovedMood: true
+      showApprovedMood:
+        true
     });
+
   }catch(e){
-    document.getElementById('errorMsg').textContent =
-      '暫時無法取得審核狀態：' + e.message;
+
+    document.getElementById(
+      'errorMsg'
+    ).textContent =
+      '暫時無法取得審核狀態：' +
+      e.message;
   }
 }
 
 async function resetAll(){
-  if(!confirm(
-    '這只會清除這台裝置上的茶六兌換顯示；D1 中的成功簽到、核准請假與國定假日不會被刪除。確定繼續嗎？'
-  )){
+  if(
+    !confirm(
+      '這只會清除這台裝置上的茶六兌換顯示；D1 中的成功簽到、核准請假與國定假日不會被刪除。確定繼續嗎？'
+    )
+  ){
     return;
   }
 
-  localStorage.removeItem(STORAGE_KEY);
-  state.redeemedCount = 0;
+  localStorage.removeItem(
+    STORAGE_KEY
+  );
+
+  state.redeemedCount =
+    0;
 
   await loadState();
 }
 
-document.getElementById('stampBtn')
-  .addEventListener('click', checkIn);
+document.getElementById(
+  'stampBtn'
+).addEventListener(
+  'click',
+  checkIn
+);
 
-document.getElementById('revealClose')
-  .addEventListener('click', () => {
-    document.getElementById('overlay')
-      .classList.remove('show');
-  });
+document.getElementById(
+  'revealClose'
+).addEventListener(
+  'click',
+  () => {
+    document.getElementById(
+      'overlay'
+    ).classList.remove(
+      'show'
+    );
+  }
+);
 
-document.getElementById('overlay')
-  .addEventListener('click', e => {
-    if(e.target.id === 'overlay'){
-      document.getElementById('overlay')
-        .classList.remove('show');
+document.getElementById(
+  'overlay'
+).addEventListener(
+  'click',
+  e => {
+    if(
+      e.target.id ===
+      'overlay'
+    ){
+      document.getElementById(
+        'overlay'
+      ).classList.remove(
+        'show'
+      );
     }
-  });
+  }
+);
 
-document.getElementById('leaveLink')
-  .addEventListener('click', openLeaveModal);
+document.getElementById(
+  'leaveLink'
+).addEventListener(
+  'click',
+  openLeaveModal
+);
 
-document.getElementById('leaveCancel')
-  .addEventListener('click', closeLeaveModal);
+document.getElementById(
+  'leaveCancel'
+).addEventListener(
+  'click',
+  closeLeaveModal
+);
 
-document.getElementById('leaveConfirm')
-  .addEventListener('click', submitLeave);
+document.getElementById(
+  'leaveConfirm'
+).addEventListener(
+  'click',
+  submitLeave
+);
 
-document.getElementById('leaveOverlay')
-  .addEventListener('click', e => {
-    if(e.target.id === 'leaveOverlay'){
+document.getElementById(
+  'leaveOverlay'
+).addEventListener(
+  'click',
+  e => {
+    if(
+      e.target.id ===
+      'leaveOverlay'
+    ){
       closeLeaveModal();
     }
-  });
+  }
+);
 
-document.getElementById('refreshLink')
-  .addEventListener('click', checkPendingStatus);
+document.getElementById(
+  'refreshLink'
+).addEventListener(
+  'click',
+  checkPendingStatus
+);
 
-document.getElementById('resetLink')
-  .addEventListener('click', resetAll);
+document.getElementById(
+  'resetLink'
+).addEventListener(
+  'click',
+  resetAll
+);
 
-document.getElementById('moodSubmit')
-  .addEventListener('click', submitMood);
+document.getElementById(
+  'moodSubmit'
+).addEventListener(
+  'click',
+  submitMood
+);
 
 loadState();
 </script>
-
 </body>
 </html>
