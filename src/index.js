@@ -41,12 +41,59 @@ function isAdmin(request, env) {
 const CHECKIN_DAYS = [1, 2, 3, 4, 5];
 
 // 一天允許簽到的時段
-const CHECKIN_WINDOWS = [
-  { start: "08:00", end: "09:00" },
-  { start: "12:00", end: "13:00" },
-  { start: "17:00", end: "18:00" },
-  { start: "22:00", end: "23:00" }
-];
+const CHECKIN_SCHEDULE = {
+  1: { start: "09:00", end: "10:00" }, // 星期一
+  2: { start: "09:00", end: "10:00" }, // 星期二
+  4: { start: "09:00", end: "10:00" }  // 星期四
+};
+
+function getTaiwanTime() {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Taipei",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    weekday: "short",
+    hour12: false
+  }).formatToParts(new Date());
+
+  const obj = {};
+
+  for (const p of parts) {
+    obj[p.type] = p.value;
+  }
+
+  const weekdayMap = {
+    Sun: 0,
+    Mon: 1,
+    Tue: 2,
+    Wed: 3,
+    Thu: 4,
+    Fri: 5,
+    Sat: 6
+  };
+
+  return {
+    date: `${obj.year}-${obj.month}-${obj.day}`,
+    time: `${obj.hour}:${obj.minute}`,
+    weekday: weekdayMap[obj.weekday]
+  };
+}
+
+function isAllowedCheckinTime(taiwan) {
+  const schedule = CHECKIN_SCHEDULE[taiwan.weekday];
+
+  if (!schedule) {
+    return false;
+  }
+
+  return (
+    taiwan.time >= schedule.start &&
+    taiwan.time <= schedule.end
+  );
+}
 // // 簽到地點：國立中興大學
 // const CHECKIN_AREA = {
 //   latitude: 24.123806,
