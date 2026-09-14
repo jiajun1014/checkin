@@ -143,9 +143,12 @@ export default {
         const token = request.headers.get("X-User-Token");
         const taiwan = getTaiwanTime();
         const holiday = await isHoliday(env, taiwan.date);
-        const attended = token
+        const attendedByRecord = token
           ? await hasSuccessfulAttendance(env, token, taiwan.date)
           : false;
+
+        // 國定假日本身就是成功簽到
+        const attended = holiday || attendedByRecord;
 
         return json({
           date: taiwan.date,
@@ -423,26 +426,53 @@ export default {
 
         const taiwan = getTaiwanTime();
 
-        const result = await env.DB.prepare(`
-          SELECT COUNT(*) AS total
-          FROM (
-            SELECT date
-            FROM checkins
-            WHERE requester_token = ?
-
-            UNION
-
-            SELECT date
-            FROM holidays
-            WHERE date <= ?
-          )
+        // 一般簽到 / 核准請假
+        const checkinResult = await env.DB.prepare(`
+          SELECT date, source
+          FROM checkins
+          WHERE requester_token = ?
+            AND date <= ?
+          ORDER BY date ASC
         `).bind(
           token,
           taiwan.date
-        ).first();
+        ).all();
+
+        // 國定假日：每位使用者都自動算成功簽到
+        const holidayResult = await env.DB.prepare(`
+          SELECT date
+          FROM holidays
+          WHERE date <= ?
+          ORDER BY date ASC
+        `).bind(
+          taiwan.date
+        ).all();
+
+        // 同一天只算一次。
+        // 若同一天同時有 checkin/leave 與 holiday，
+        // 優先保留個人的 checkin/leave 來源。
+        const byDate = new Map();
+
+        for (const row of holidayResult.results || []) {
+          byDate.set(row.date, {
+            date: row.date,
+            source: "holiday"
+          });
+        }
+
+        for (const row of checkinResult.results || []) {
+          byDate.set(row.date, {
+            date: row.date,
+            source: row.source || "checkin"
+          });
+        }
+
+        const records = Array.from(byDate.values())
+          .sort((a, b) => a.date.localeCompare(b.date));
 
         return json({
-          total: Number(result?.total || 0)
+          total: records.length,
+          records
         }, 200, cors);
       }
 
