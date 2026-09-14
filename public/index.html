@@ -1576,22 +1576,56 @@ async function checkPendingStatus(){
 }
 
 async function resetAll(){
-  if(
-    !confirm(
-      '確定刪除？'
-    )
-  ){
+
+  const ok = confirm(
+    '確定要重新開始所有紀錄嗎？
+  );
+
+  if(!ok){
     return;
   }
 
-  localStorage.removeItem(
-    STORAGE_KEY
-  );
+  const errorMsg =
+    document.getElementById('errorMsg');
 
-  state.redeemedCount =
-    0;
+  errorMsg.textContent =
+    '正在清除所有紀錄...';
 
-  await loadState();
+  try{
+
+    await api('/api/reset', {
+      method: 'POST',
+      body: JSON.stringify({})
+    });
+
+    localStorage.removeItem(
+      STORAGE_KEY
+    );
+
+    state = {
+      totalCount: 0,
+      attendanceRecords: [],
+      dates: [],
+      approvedLeaves: [],
+      holidays: [],
+      pendingLeave: null,
+      lastDate: null,
+      redeemedCount: 0
+    };
+
+    todayStatus = null;
+
+    await refreshAll();
+
+    errorMsg.textContent =
+      '已重新開始所有紀錄';
+
+  }catch(e){
+
+    errorMsg.textContent =
+      '重新開始失敗：' +
+      e.message;
+  }
 }
 
 document.getElementById(
