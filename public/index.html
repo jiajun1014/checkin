@@ -930,7 +930,7 @@ function render(){
     if(todayStatus && !todayStatus.isAllowedTime){
       hint.textContent = '目前不在開放簽到時間';
     }else{
-      hint.textContent = '點一下，完成今日簽到';
+      hint.textContent = '請美女點一下，完成今日簽到';
     }
 
     if(todayStatus && todayStatus.scheduleText){
@@ -1373,9 +1373,7 @@ async function checkPendingStatus(){
 
 async function resetAll(){
   const ok = confirm(
-    '確定要重新開始所有紀錄嗎？\n\n' +
-    '這會清除簽到、請假、心情、國定假日與累積進度。\n' +
-    '清除後會從 0 重新開始。'
+    '確定要重新開始所有紀錄嗎？'
   );
 
   if(!ok){
