@@ -42,6 +42,7 @@ function isAdmin(request, env) {
 const CHECKIN_SCHEDULE = {
   1: { start: "09:00", end: "10:00" }, // 星期一
   2: { start: "09:00", end: "10:00" }, // 星期二
+  3: { start: "10:00", end: "11:00" },
   4: { start: "09:00", end: "10:00" }  // 星期四
 };
 
@@ -119,7 +120,7 @@ function isAllowedCheckinTime(taiwan) {
 }
 
 function getScheduleText() {
-  return "星期一、星期二、星期四 09:00～10:00";
+  return "星期一、星期二、星期四 09:00～09:40 星期三 10:00~10:40";
 }
 
 async function isHoliday(env, date) {
