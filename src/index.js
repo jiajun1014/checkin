@@ -41,7 +41,7 @@ function isAdmin(request, env) {
 
 const CHECKIN_SCHEDULE = {
   1: { start: "09:00", end: "10:00" }, // 星期一
-  2: { start: "09:00", end: "10:00" }, // 星期二
+  2: { start: "09:00", end: "20:00" }, // 星期二
   3: { start: "10:00", end: "11:00" },
   4: { start: "09:00", end: "10:00" }  // 星期四
 };
