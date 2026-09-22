@@ -50,7 +50,7 @@ const CHECKIN_SCHEDULE = {
 const CHECKIN_AREA = {
   latitude: 25.033649,
   longitude: 121.433255,
-  radiusMeters: 200
+  radiusMeters: 600
 };
 // 簽到地點：國立中興大學
 // const CHECKIN_AREA = {
